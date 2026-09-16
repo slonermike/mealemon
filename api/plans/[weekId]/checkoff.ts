@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { put, get } from '@vercel/blob'
+import { requireAuth } from '../../_auth'
 import type { CheckoffKey, Plan } from '../../../src/lib/schema'
 
 function blobPathname(weekId: string) {
@@ -24,6 +25,8 @@ async function writePlan(weekId: string, plan: Plan): Promise<void> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
+
   const { weekId } = req.query as { weekId: string }
 
   if (req.method !== 'PATCH') {
