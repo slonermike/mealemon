@@ -58,8 +58,13 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
 
   return (
     <li style={itemBg}>
-      <div style={rowStyle}>
-        <Link to={'/recipes/$recipeId'} params={{ recipeId }} style={titleLinkStyle}>
+      <button
+        type={'button'}
+        onClick={() => setExpanded((e) => !e)}
+        style={{ ...rowStyle, ...rowButtonStyle }}
+        aria-expanded={expanded}
+      >
+        <div style={titleBlockStyle}>
           <div style={titleRowStyle}>
             <span style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</span>
             {isIncompatible && <span style={incompatibleBadgeStyle}>{'Cannot Substitute'}</span>}
@@ -68,24 +73,17 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
             )}
           </div>
           {planLine && <div style={planLineStyle}>{planLine}</div>}
-        </Link>
-        <button
-          type={'button'}
-          onClick={() => setExpanded((e) => !e)}
-          style={chevronButtonStyle}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
+        </div>
+        <Link
+          to={'/recipes/$recipeId'}
+          params={{ recipeId }}
+          style={detailLinkStyle}
+          aria-label={`View ${recipe.title}`}
+          onClick={(e) => e.stopPropagation()}
         >
-          <span
-            style={{
-              display: 'inline-block',
-              transform: expanded ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s',
-            }}
-          >
-            {'▾'}
-          </span>
-        </button>
-      </div>
+          {'›'}
+        </Link>
+      </button>
       {expanded && (
         <div
           style={
@@ -154,6 +152,19 @@ const rowStyle: React.CSSProperties = {
   gap: 8,
 }
 
+const rowButtonStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  textAlign: 'left',
+}
+
+const titleBlockStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+}
+
 const titleRowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -161,11 +172,20 @@ const titleRowStyle: React.CSSProperties = {
   flexWrap: 'wrap',
 }
 
-const titleLinkStyle: React.CSSProperties = {
-  flex: 1,
+const detailLinkStyle: React.CSSProperties = {
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 6,
+  border: '1px solid #e5e7eb',
+  background: '#fff',
+  color: '#6b7280',
+  fontSize: 20,
   textDecoration: 'none',
-  color: 'inherit',
-  textAlign: 'left',
+  lineHeight: 1,
 }
 
 const planLineStyle: React.CSSProperties = {
@@ -193,16 +213,6 @@ const incompatibleBadgeStyle: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
   whiteSpace: 'nowrap',
-}
-
-const chevronButtonStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  fontSize: 20,
-  color: '#6b7280',
-  cursor: 'pointer',
-  padding: '4px 8px',
-  flexShrink: 0,
 }
 
 const expandedPanelStyle: React.CSSProperties = {
