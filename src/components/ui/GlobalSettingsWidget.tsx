@@ -55,7 +55,7 @@ export function GlobalSettingsWidget() {
 
 const containerStyle: React.CSSProperties = {
   position: 'fixed',
-  bottom: 16,
+  bottom: 72,
   left: '50%',
   transform: 'translateX(-50%)',
   width: 'min(448px, calc(100vw - 32px))',

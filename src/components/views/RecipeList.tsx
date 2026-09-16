@@ -117,7 +117,7 @@ export function RecipeList() {
   if (loadState === 'error') return <p style={{ padding: 24 }}>{'Failed to load recipes.'}</p>
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 0 100px' }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 0 160px' }}>
       <h1 style={{ padding: '0 16px', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
         {'Recipes'}
       </h1>
