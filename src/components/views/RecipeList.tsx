@@ -3,7 +3,12 @@ import { useShallow } from 'zustand/react/shallow'
 import { Link } from '@tanstack/react-router'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
 import { GlobalSettingsWidget } from '@/components/ui/GlobalSettingsWidget'
-import { useRecipeStore, selectAllRecipeIds, selectRecipeById } from '@/store/recipeSlice'
+import {
+  useRecipeStore,
+  selectAllRecipeIds,
+  selectRecipeById,
+  selectRecipeAllergenTags,
+} from '@/store/recipeSlice'
 import {
   usePlanStore,
   selectIsRecipeSelected,
@@ -19,20 +24,28 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
   const isSelectedSelector = useMemo(() => selectIsRecipeSelected(recipeId), [recipeId])
   const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
   const recipeModesSelector = useMemo(() => selectRecipeModes(recipeId), [recipeId])
+  const allergenTagsSelector = useMemo(() => selectRecipeAllergenTags(recipeId), [recipeId])
 
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
+  const recipeTags = useRecipeStore(useShallow(allergenTagsSelector))
   const isSelected = usePlanStore(isSelectedSelector)
   const servings = usePlanStore(servingsSelector)
   const recipeModesOverride = usePlanStore(recipeModesSelector)
   const globalModes = usePlanStore((s) => s.active_modes)
 
-  const activeModes = recipeModesOverride ?? globalModes
+  const hasOverride = recipeModesOverride !== null && recipeModesOverride !== undefined
+  const activeModes = hasOverride ? recipeModesOverride! : globalModes
 
   const incompatible = useMemo(() => {
     if (!recipe) return []
     return getIncompatibleSlots(recipe, globalModes, registry)
   }, [recipe, globalModes, registry])
+
+  const allowedAllergens = useMemo(
+    () => globalModes.filter((tag) => !activeModes.includes(tag) && recipeTags.includes(tag)),
+    [globalModes, activeModes, recipeTags],
+  )
 
   if (!recipe) return null
 
@@ -50,6 +63,9 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
           <div style={titleRowStyle}>
             <span style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</span>
             {isIncompatible && <span style={incompatibleBadgeStyle}>{'Cannot Substitute'}</span>}
+            {!isIncompatible && allowedAllergens.length > 0 && (
+              <span style={allergenBadgeStyle}>{`Contains: ${allowedAllergens.join(', ')}`}</span>
+            )}
           </div>
           {planLine && <div style={planLineStyle}>{planLine}</div>}
         </Link>
@@ -86,7 +102,7 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
               {incompatible.join(', ')}
             </div>
           )}
-          <MealPlanWidget recipeId={recipeId} baseServings={recipe.base_servings} />
+          <MealPlanWidget recipeId={recipeId} />
         </div>
       )}
     </li>
@@ -157,6 +173,16 @@ const planLineStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 500,
   color: '#1d4ed8',
+}
+
+const allergenBadgeStyle: React.CSSProperties = {
+  padding: '1px 6px',
+  borderRadius: 4,
+  background: '#fef3c7',
+  color: '#92400e',
+  fontSize: 11,
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }
 
 const incompatibleBadgeStyle: React.CSSProperties = {

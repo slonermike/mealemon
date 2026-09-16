@@ -5,10 +5,10 @@ interface PlanState extends Plan {
   default_servings: number
   setServings: (recipe_id: string, servings: number) => void
   setDefaultServings: (servings: number) => void
-  toggleRecipe: (recipe_id: string, base_servings: number) => void
+  toggleRecipe: (recipe_id: string) => void
   toggleMode: (mode: string) => void
   toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
-  clearRecipeModes: (recipe_id: string) => void
+  resetRecipeModes: (recipe_id: string) => void
   toggleCheckoff: (key: CheckoffKey) => void
   loadPlan: (plan: Plan) => void
 }
@@ -26,13 +26,13 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
   checked_off: [],
   default_servings: 4,
 
-  toggleRecipe: (recipe_id, base_servings) => {
-    const { selected } = get()
+  toggleRecipe: (recipe_id) => {
+    const { selected, default_servings } = get()
     const exists = selected.some((s) => s.recipe_id === recipe_id)
     set({
       selected: exists
         ? selected.filter((s) => s.recipe_id !== recipe_id)
-        : [...selected, { recipe_id, servings: base_servings }],
+        : [...selected, { recipe_id, servings: default_servings }],
     })
   },
 
@@ -64,10 +64,10 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
     }))
   },
 
-  clearRecipeModes: (recipe_id) => {
+  resetRecipeModes: (recipe_id) => {
     set((s) => ({
       selected: s.selected.map((sel) =>
-        sel.recipe_id === recipe_id ? { ...sel, mode_overrides: [] } : sel,
+        sel.recipe_id === recipe_id ? { ...sel, mode_overrides: undefined } : sel,
       ),
     }))
   },

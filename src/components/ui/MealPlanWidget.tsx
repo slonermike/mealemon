@@ -12,15 +12,14 @@ import { ServingsStepper } from './ServingsStepper'
 
 interface Props {
   recipeId: string
-  baseServings: number
 }
 
-export function MealPlanWidget({ recipeId, baseServings }: Props) {
+export function MealPlanWidget({ recipeId }: Props) {
   const globalModes = usePlanStore((s) => s.active_modes)
   const toggleRecipe = usePlanStore((s) => s.toggleRecipe)
   const setServings = usePlanStore((s) => s.setServings)
   const toggleRecipeMode = usePlanStore((s) => s.toggleRecipeMode)
-  const clearRecipeModes = usePlanStore((s) => s.clearRecipeModes)
+  const resetRecipeModes = usePlanStore((s) => s.resetRecipeModes)
 
   const isSelectedSelector = useMemo(() => selectIsRecipeSelected(recipeId), [recipeId])
   const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
@@ -32,16 +31,18 @@ export function MealPlanWidget({ recipeId, baseServings }: Props) {
   const recipeModesOverride = usePlanStore(recipeModesSelector)
   const recipeTags = useRecipeStore(useShallow(allergenTagsSelector))
 
-  // Per-recipe modes: if overrides exist use them, otherwise inherit global
-  const activeModes = recipeModesOverride ?? globalModes
+  const hasOverride = recipeModesOverride !== null && recipeModesOverride !== undefined
+  const activeModes = hasOverride ? recipeModesOverride! : globalModes
+
+  // Tags present in this recipe that the household normally excludes but are now allowed
+  const allowedAllergens = useMemo(
+    () => globalModes.filter((tag) => !activeModes.includes(tag) && recipeTags.includes(tag)),
+    [globalModes, activeModes, recipeTags],
+  )
 
   if (!isSelected) {
     return (
-      <button
-        type={'button'}
-        onClick={() => toggleRecipe(recipeId, baseServings)}
-        style={addButtonStyle}
-      >
+      <button type={'button'} onClick={() => toggleRecipe(recipeId)} style={addButtonStyle}>
         {'Add to plan'}
       </button>
     )
@@ -49,10 +50,13 @@ export function MealPlanWidget({ recipeId, baseServings }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <ServingsStepper
-        servings={servings ?? baseServings}
-        onChange={(s) => setServings(recipeId, s)}
-      />
+      {allowedAllergens.length > 0 && (
+        <div style={allergenWarningStyle}>
+          <span style={{ fontWeight: 600 }}>{'Contains: '}</span>
+          {allowedAllergens.join(', ')}
+        </div>
+      )}
+      <ServingsStepper servings={servings!} onChange={(s) => setServings(recipeId, s)} />
       {recipeTags.length > 0 && (
         <div>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{'Exclusions'}</div>
@@ -60,15 +64,13 @@ export function MealPlanWidget({ recipeId, baseServings }: Props) {
             allTags={recipeTags}
             activeTags={activeModes}
             onToggle={(tag) => toggleRecipeMode(recipeId, tag, globalModes)}
-            onClear={() => clearRecipeModes(recipeId)}
+            onClear={() => resetRecipeModes(recipeId)}
+            clearLabel={'defaults'}
+            clearActive={!hasOverride}
           />
         </div>
       )}
-      <button
-        type={'button'}
-        onClick={() => toggleRecipe(recipeId, baseServings)}
-        style={removeButtonStyle}
-      >
+      <button type={'button'} onClick={() => toggleRecipe(recipeId)} style={removeButtonStyle}>
         {'Remove from plan'}
       </button>
     </div>
@@ -96,4 +98,13 @@ const removeButtonStyle: React.CSSProperties = {
   fontSize: 14,
   cursor: 'pointer',
   alignSelf: 'flex-start',
+}
+
+const allergenWarningStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: 6,
+  background: '#fef3c7',
+  border: '1px solid #fcd34d',
+  fontSize: 13,
+  color: '#92400e',
 }

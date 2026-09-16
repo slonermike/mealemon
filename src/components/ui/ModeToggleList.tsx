@@ -3,15 +3,24 @@ interface Props {
   activeTags: string[]
   onToggle: (tag: string) => void
   onClear: () => void
+  clearLabel?: string
+  clearActive?: boolean
 }
 
-export function ModeToggleList({ allTags, activeTags, onToggle, onClear }: Props) {
+export function ModeToggleList({
+  allTags,
+  activeTags,
+  onToggle,
+  onClear,
+  clearLabel = 'none',
+  clearActive,
+}: Props) {
   if (allTags.length === 0) return null
-  const noneActive = activeTags.length === 0
+  const isClearActive = clearActive !== undefined ? clearActive : activeTags.length === 0
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-      <button type={'button'} onClick={onClear} style={chipStyle(noneActive)}>
-        {'none'}
+      <button type={'button'} onClick={onClear} style={chipStyle(isClearActive)}>
+        {clearLabel}
       </button>
       {allTags.map((tag) => {
         const active = activeTags.includes(tag)
