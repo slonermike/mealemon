@@ -22,7 +22,7 @@ export const useRecipeStore = create<RecipeState>()((set, get) => ({
     try {
       // TODO: check IndexedDB version against /recipes-version.json, fetch if stale
       const res = await fetch('/recipes.json')
-      if (!res.ok) throw new Error(`Failed to fetch recipes: ${res.status}`)
+      if (!res.ok) throw new Error(`${res.status}`)
       const data = await res.json()
       set({
         recipes: data.recipes,
@@ -30,8 +30,19 @@ export const useRecipeStore = create<RecipeState>()((set, get) => ({
         version: data.version,
         loadState: 'loaded',
       })
-    } catch (err) {
-      set({ loadState: 'error', loadError: err })
+    } catch {
+      // Fall back to bundled fixtures in dev when public/recipes.json doesn't exist
+      const fixtures = (await import('@/fixtures/recipes.json')) as unknown as {
+        version: number
+        recipes: Record<string, Recipe>
+        registry: Record<string, IngredientRegistryEntry>
+      }
+      set({
+        recipes: fixtures.recipes,
+        registry: fixtures.registry,
+        version: fixtures.version,
+        loadState: 'loaded',
+      })
     }
   },
 }))

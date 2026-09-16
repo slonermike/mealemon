@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "prepare": "lefthook install",
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "node scripts/build-recipes.mjs && vite",
+    "build": "node scripts/build-recipes.mjs && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"api/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" \"api/**/*.ts\" --fix",

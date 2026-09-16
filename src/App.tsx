@@ -1,3 +1,11 @@
+import { useEffect } from 'react'
+import { RecipeList } from '@/components/views/RecipeList'
+import { useRecipeStore } from '@/store/recipeSlice'
+
 export default function App() {
-  return <div>{'Mealemon'}</div>
+  const load = useRecipeStore((s) => s.load)
+  useEffect(() => {
+    void load()
+  }, [load])
+  return <RecipeList />
 }
