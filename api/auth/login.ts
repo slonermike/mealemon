@@ -1,6 +1,24 @@
+import * as crypto from 'crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
-import { setSessionCookie } from '../_auth'
+
+const COOKIE_NAME = 'mealemon_session'
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30
+
+function signingSecret(): string {
+  const secret = process.env.SESSION_SECRET
+  if (!secret) throw new Error('SESSION_SECRET env var is not set')
+  return secret
+}
+
+function sign(value: string): string {
+  return crypto.createHmac('sha256', signingSecret()).update(value).digest('hex')
+}
+
+function makeToken(): string {
+  const payload = `mealemon:${Date.now()}`
+  return `${payload}.${sign(payload)}`
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -26,6 +44,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  setSessionCookie(res)
+  const token = makeToken()
+  res.setHeader(
+    'Set-Cookie',
+    `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}; Path=/`,
+  )
   res.status(200).json({ ok: true })
 }
