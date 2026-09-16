@@ -1,0 +1,8 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "buildCommand": "git submodule update --init --recursive && npm run build"
+}
