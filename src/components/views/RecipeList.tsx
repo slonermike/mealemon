@@ -39,8 +39,8 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
 
   const incompatible = useMemo(() => {
     if (!recipe) return []
-    return getIncompatibleSlots(recipe, globalModes, registry)
-  }, [recipe, globalModes, registry])
+    return getIncompatibleSlots(recipe, activeModes, registry)
+  }, [recipe, activeModes, registry])
 
   const allowedAllergens = useMemo(
     () => globalModes.filter((tag) => !activeModes.includes(tag) && recipeTags.includes(tag)),

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
 import { useRecipeStore, selectRecipeById } from '@/store/recipeSlice'
-import { usePlanStore, selectServings } from '@/store/planSlice'
+import { usePlanStore, selectServings, selectRecipeModes } from '@/store/planSlice'
 import { resolveSlot, getIncompatibleSlots } from '@/lib/pipeline'
 import { formatAmount } from '@/lib/units'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
@@ -45,19 +45,27 @@ export function RecipeDetail() {
 
   const recipeSelector = useMemo(() => selectRecipeById(recipeId), [recipeId])
   const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
+  const recipeModesSelector = useMemo(() => selectRecipeModes(recipeId), [recipeId])
 
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
   const plannedServings = usePlanStore(servingsSelector)
   const globalModes = usePlanStore((s) => s.active_modes)
+  const recipeModesOverride = usePlanStore(recipeModesSelector)
+
+  const activeModes =
+    recipeModesOverride !== null && recipeModesOverride !== undefined
+      ? recipeModesOverride
+      : globalModes
 
   const incompatible = useMemo(
-    () => (recipe ? getIncompatibleSlots(recipe, globalModes, registry) : []),
-    [recipe, globalModes, registry],
+    () => (recipe ? getIncompatibleSlots(recipe, activeModes, registry) : []),
+    [recipe, activeModes, registry],
   )
 
+  const defaultServings = usePlanStore((s) => s.default_servings)
   const baseServings = recipe?.base_servings ?? 1
-  const displayServings = plannedServings ?? baseServings
+  const displayServings = plannedServings ?? defaultServings
   const scale = displayServings / baseServings
 
   const resolvedSlots = useResolvedIngredients(
@@ -120,7 +128,7 @@ export function RecipeDetail() {
           </div>
         )}
 
-        <MealPlanWidget recipeId={recipeId} baseServings={recipe.base_servings} />
+        <MealPlanWidget recipeId={recipeId} />
 
         <section style={sectionStyle}>
           <h2 style={sectionHeadingStyle}>{'Ingredients'}</h2>
