@@ -4,6 +4,17 @@ Brief overviews of development sessions, newest first.
 
 ---
 
+## 2026-09-16 — Polish and deploy fixes
+
+- Added Liz Lemon hero image (circle crop) to login screen
+- Added `/logout` route — hard-navigates to `/` after clearing the session cookie
+- Fixed infinite render loop in `usePlanSync` (`useShallow` missing from selector)
+- Fixed per-recipe exclusions not applying to shopping list (was always using global modes)
+- Fixed Vite proxy for local dev (`/api` → `vercel dev` on port 3001)
+- Resolved series of Vercel deployment blockers: lefthook in CI, function bundler import restrictions, git submodule SSH vs HTTPS, submodule credential injection via `GITHUB_TOKEN` PAT
+
+---
+
 ## 2026-09-15 / 2026-09-16 — Shopping list, persistence, auth, live deploy
 
 ### What was built
