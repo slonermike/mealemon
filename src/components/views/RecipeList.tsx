@@ -3,21 +3,37 @@ import { useShallow } from 'zustand/react/shallow'
 import { Link } from '@tanstack/react-router'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
 import { useRecipeStore, selectAllRecipeIds, selectRecipeById } from '@/store/recipeSlice'
-import { usePlanStore, selectIsRecipeSelected } from '@/store/planSlice'
+import {
+  usePlanStore,
+  selectIsRecipeSelected,
+  selectServings,
+  selectRecipeModes,
+} from '@/store/planSlice'
 
 function RecipeListItem({ recipeId }: { recipeId: string }) {
   const [expanded, setExpanded] = useState(false)
 
   const recipeSelector = useMemo(() => selectRecipeById(recipeId), [recipeId])
   const isSelectedSelector = useMemo(() => selectIsRecipeSelected(recipeId), [recipeId])
+  const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
+  const recipeModesSelector = useMemo(() => selectRecipeModes(recipeId), [recipeId])
 
   const recipe = useRecipeStore(recipeSelector)
   const isSelected = usePlanStore(isSelectedSelector)
+  const servings = usePlanStore(servingsSelector)
+  const recipeModesOverride = usePlanStore(recipeModesSelector)
+  const globalModes = usePlanStore((s) => s.active_modes)
+
+  const activeModes = recipeModesOverride ?? globalModes
 
   if (!recipe) return null
 
+  const planLine = isSelected
+    ? `in plan: ${servings ?? recipe.base_servings} servings${activeModes.length > 0 ? `; excl: ${activeModes.join(', ')}` : ''}`
+    : null
+
   return (
-    <li style={itemStyle}>
+    <li style={isSelected ? { ...itemStyle, ...itemSelectedStyle } : itemStyle}>
       <div style={rowStyle}>
         <Link to={'/recipes/$recipeId'} params={{ recipeId }} style={titleLinkStyle}>
           <div style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</div>
@@ -26,8 +42,8 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
             {' servings · '}
             {recipe.steps.length}
             {' steps'}
-            {isSelected && <span style={inPlanBadgeStyle}>{'In plan'}</span>}
           </div>
+          {planLine && <div style={planLineStyle}>{planLine}</div>}
         </Link>
         <button
           type={'button'}
@@ -82,6 +98,11 @@ const itemStyle: React.CSSProperties = {
   borderBottom: '1px solid #e5e7eb',
 }
 
+const itemSelectedStyle: React.CSSProperties = {
+  background: '#eff6ff',
+  borderBottom: '1px solid #bfdbfe',
+}
+
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -96,6 +117,13 @@ const titleLinkStyle: React.CSSProperties = {
   textAlign: 'left',
 }
 
+const planLineStyle: React.CSSProperties = {
+  marginTop: 4,
+  fontSize: 12,
+  fontWeight: 500,
+  color: '#1d4ed8',
+}
+
 const chevronButtonStyle: React.CSSProperties = {
   background: 'none',
   border: 'none',
@@ -108,16 +136,6 @@ const chevronButtonStyle: React.CSSProperties = {
 
 const expandedPanelStyle: React.CSSProperties = {
   padding: '0 16px 16px',
-  borderTop: '1px solid #f3f4f6',
-  background: '#fafafa',
-}
-
-const inPlanBadgeStyle: React.CSSProperties = {
-  marginLeft: 8,
-  padding: '1px 6px',
-  borderRadius: 4,
+  borderTop: '1px solid #bfdbfe',
   background: '#dbeafe',
-  color: '#1d4ed8',
-  fontSize: 12,
-  fontWeight: 600,
 }
