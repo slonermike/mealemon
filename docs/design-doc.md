@@ -11,17 +11,19 @@ Mealime is shutting down (October 21, 2026). Suggested replacement apps don't me
 
 No evaluated third-party product (NumYum, Samsung Food, Peel, Swoodie, Eat This Much) matches this combination well enough to justify the subscription/complexity tradeoff. Rather than building a single-purpose household tool, the project is now split into a **generic, open-source substitution/allergen engine** and a **private consumer app + recipe data** built on top of it.
 
-## 2. Project Split: Engine vs. Application
+## 2. Project Split: App vs. Content
 
 This is the central architectural decision and shapes everything below.
 
-| | Engine | Application |
+| | App | Content |
 |---|---|---|
-| **License** | Open source (MIT/Apache) | Private |
-| **Contents** | Recipe/ingredient schema, substitution & shopping-list pipeline logic, JSON Schema validator, docs, a couple of hand-written example recipes | Next.js PWA, real recipe data, shared shopping-list infra |
+| **Visibility** | Public (or at least shareable) | Private |
+| **Contents** | All code: schema types, pipeline logic, Next.js PWA, shopping-list infra | Real recipe JSON files conforming to the app's schema |
 | **Contains real recipe content?** | No | Yes |
 
-**Why the split matters:** recipe content hand-keyed from Mealime (or any other source) is still that source's IP even after re-typing it into your own JSON format — re-formatting doesn't change ownership. The engine must never contain real recipe content, only the format they're expressed in and the code that operates on that format. Example recipes shipped with the engine for documentation purposes must be originals, not derived from any external source.
+**Why the split matters:** recipe content hand-keyed from Mealime (or any other source) is still that source's IP even after re-typing it into your own JSON format — re-formatting doesn't change ownership. The app repo must never contain real recipe content, only the format recipes are expressed in and the code that operates on that format.
+
+**How they combine:** the content repo is a **git submodule** of the app repo, mounted at `content/`. During a normal development or deployment build, the submodule is present and recipes are bundled into the app. The app repo alone — without the submodule — builds and runs fine against example/fixture data, so it can be shared or open-sourced without exposing any recipe content.
 
 ## 3. Scope & Philosophy
 
@@ -181,11 +183,11 @@ Pipeline stages, in order:
 
 This pipeline is fully unit-testable with no UI dependency and no dependency on any specific recipe content — it operates purely on the schema, which is what makes it suitable to open source independent of any household's data.
 
-## 7. Recipe Sourcing & Integration (Application, Private)
+## 7. Recipe Sourcing & Integration
 
-- **Source:** a private repository (or other private store) containing the household's actual recipe JSON, conforming to the engine's schema and validated against its JSON Schema.
+- **Source:** a private repository (`mealemon-content`) containing the household's actual recipe JSON, conforming to the app's schema and validated against its JSON Schema.
 - **Ingestion process:** recipes are hand-curated from the family's Mealime favorites (harvested before its shutdown) plus originals, re-keyed into the schema. Permanent household exclusions (gluten, shellfish, nightshades) are enforced by simply not including violating recipes, or reworking them with a permanent substitute, at this authoring step.
-- **Integration into the app:** the private recipe repo is pulled in as a **git submodule** of the application repo. This was chosen over a private npm package or a build-time authenticated fetch because it requires the least new tooling, keeps recipe history in normal git, and only needs a deploy-time auth token for Vercel to clone the private submodule during build.
+- **Integration into the app:** the content repo is pulled in as a **git submodule** of the app repo, mounted at `content/`. This was chosen over a private npm package or a build-time authenticated fetch because it requires the least new tooling, keeps recipe history in normal git, and only needs a deploy-time auth token for Vercel to clone the private submodule during build. The app builds without the submodule (against fixture data) so the app repo itself is safe to share.
 - **Format for the app itself:** submodule contents are consumed as (or built into) a single `recipes.json` file — see §8.
 
 ## 8. PWA Recipe Data Delivery
@@ -321,30 +323,34 @@ State that needs to be shared across components lives in Zustand, not React Cont
 ### File layout (planned)
 
 ```
-app/
-  src/
-    store/
-      recipeSlice.ts       # useRecipeStore + selectors
-      planSlice.ts         # usePlanStore + selectors
-      sessionSlice.ts      # useSessionStore
-      navSlice.ts          # useNavStore
-      shoppingSelectors.ts # cross-store derived hooks (useResolvedShoppingList, etc.)
-    components/
-      views/               # top-level view components, one per nav destination
-      ui/                  # reusable primitives (buttons, modals, list items)
+content/                         # git submodule → private mealemon-content repo
+  recipes/                       # individual recipe JSON files
+  ingredients.json               # ingredient registry
+docs/
+src/
+  app/                           # Next.js app router
     api/
-      plans.ts             # fetch/mutate plan via Vercel API
-      checkoff.ts          # checkoff toggle endpoint
-engine/
-  src/
-    pipeline.ts            # resolve → scale → normalize → aggregate → round
-    schema.ts              # TypeScript types for Recipe, Ingredient, Plan, etc.
-    validation.ts          # JSON Schema validator wrapper
+      plans/[weekId]/route.ts    # GET, POST, PATCH plan endpoints
+      plans/[weekId]/checkoff/route.ts
+  components/
+    views/                       # top-level view components, one per nav destination
+    ui/                          # reusable primitives (buttons, modals, list items)
+  lib/
+    pipeline.ts                  # resolve → scale → normalize → aggregate → round
+    schema.ts                    # TypeScript types for Recipe, Ingredient, Plan, etc.
+    validation.ts                # JSON Schema validator wrapper
+  store/
+    recipeSlice.ts               # useRecipeStore + selectors
+    planSlice.ts                 # usePlanStore + selectors
+    sessionSlice.ts              # useSessionStore
+    navSlice.ts                  # useNavStore
+    shoppingSelectors.ts         # cross-store derived hooks (useResolvedShoppingList, etc.)
+  fixtures/                      # example recipes used when content submodule is absent
 ```
 
 ## 11. Summary of Key Decisions
 
-- **Public engine / private data split**, driven by the recognition that recipe content carries copyright even after reformatting — the schema and pipeline are open-sourceable; the recipes never are, unless independently authored.
+- **App / content split**, driven by the recognition that recipe content carries copyright even after reformatting — the app code is shareable; the recipes never are, unless independently authored. The content repo is a git submodule mounted at `content/`; the app builds without it against fixture data.
 - **Household-wide exclusions by default**, with an optional per-person `applies_to` scope added at the engine level so other adopters with mixed-allergy households aren't forced into this household's simplifying assumption.
 - **Free-form `allergen_tags`**, not a hardcoded enum, so the engine doesn't presume any fixed taxonomy of allergens or dietary concerns.
 - **Substitutions are a priority-ordered candidate list per ingredient slot**, not a mode-keyed map — each slot lists workable ingredients in preference order, and resolution picks the first candidate that survives the currently active exclusion set. This is recipe-and-slot-scoped, not global (the same ingredient can appear with different, or no, fallbacks across recipes), and naturally handles multiple simultaneous exclusions without needing a combinatorial key per exclusion pairing.
@@ -353,4 +359,4 @@ engine/
 - **Static, bundled/versioned recipe data** instead of an external recipe API or live database — avoids cost, complexity, and quota-tracking, while still supporting efficient PWA updates via a version-checked single file.
 - **Shopping list generation as a pure function pipeline**, fully engine-side and testable independent of any recipe content.
 - **Shopping list items carry both a combined total and per-recipe occurrences**, with a computed `combinable` flag (false when units genuinely can't sum, e.g. "1 lb" vs. "4 count" of the same ingredient across recipes) and a user-facing `display_mode` toggle (combined/separate) for the rest — since a valid sum isn't always the most useful shopping unit (e.g. lemon halves vs. a combined 1.5 lemons). Checkoff state tracks at per-recipe-occurrence granularity regardless of display mode, so it survives switching views mid-trip.
-- **Git submodule integration** for pulling the private recipe repo into the (potentially public-adjacent) application repo, chosen for minimal new tooling.
+- **Git submodule integration** for pulling the private content repo (`mealemon-content`) into the app repo at `content/`, chosen for minimal new tooling — keeps recipe history in normal git and only needs a deploy-time auth token for Vercel.
