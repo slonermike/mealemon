@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "registry": {
+    "olive-oil": {
+      "id": "olive-oil",
+      "name": "olive oil",
+      "category": "pantry",
+      "unit_family": "volume",
+      "default_allergen_tags": []
+    },
+    "lemon": {
+      "id": "lemon",
+      "name": "lemon",
+      "category": "produce",
+      "unit_family": "count",
+      "default_allergen_tags": []
+    },
+    "chicken-breast": {
+      "id": "chicken-breast",
+      "name": "chicken breast",
+      "category": "meat",
+      "unit_family": "weight",
+      "default_allergen_tags": []
+    },
+    "garlic": {
+      "id": "garlic",
+      "name": "garlic",
+      "category": "produce",
+      "unit_family": "count",
+      "default_allergen_tags": []
+    }
+  },
+  "recipes": {
+    "example-lemon-chicken": {
+      "schema_version": 1,
+      "id": "example-lemon-chicken",
+      "title": "Lemon Garlic Chicken",
+      "base_servings": 4,
+      "ingredients": [
+        {
+          "id": "0001",
+          "candidates": [{ "ingredient_ref": "chicken-breast", "amount": 1.5, "unit": "lb" }]
+        },
+        {
+          "id": "0002",
+          "candidates": [{ "ingredient_ref": "lemon", "amount": 1, "unit": "count" }]
+        },
+        {
+          "id": "0003",
+          "candidates": [{ "ingredient_ref": "garlic", "amount": 4, "unit": "count" }]
+        },
+        {
+          "id": "0004",
+          "candidates": [{ "ingredient_ref": "olive-oil", "amount": 2, "unit": "tbsp" }]
+        }
+      ],
+      "steps": [
+        {
+          "id": "s1",
+          "title": "Prep",
+          "content": "Mince {0003} and combine with juice of {0002} and {0004}."
+        },
+        {
+          "id": "s2",
+          "title": "Cook",
+          "content": "Sear {0001} in a skillet over medium-high heat, 5–6 minutes per side.",
+          "timer_seconds": 360
+        }
+      ]
+    }
+  }
+}
