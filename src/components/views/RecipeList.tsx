@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { Link } from '@tanstack/react-router'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
 import { useRecipeStore, selectAllRecipeIds, selectRecipeById } from '@/store/recipeSlice'
 import { usePlanStore, selectIsRecipeSelected } from '@/store/planSlice'
@@ -18,13 +19,7 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
   return (
     <li style={itemStyle}>
       <div style={rowStyle}>
-        <button
-          type={'button'}
-          style={titleButtonStyle}
-          onClick={() => {
-            /* TODO: navigate to detail */
-          }}
-        >
+        <Link to={'/recipes/$recipeId'} params={{ recipeId }} style={titleLinkStyle}>
           <div style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</div>
           <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
             {recipe.base_servings}
@@ -33,7 +28,7 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
             {' steps'}
             {isSelected && <span style={inPlanBadgeStyle}>{'In plan'}</span>}
           </div>
-        </button>
+        </Link>
         <button
           type={'button'}
           onClick={() => setExpanded((e) => !e)}
@@ -94,13 +89,11 @@ const rowStyle: React.CSSProperties = {
   gap: 8,
 }
 
-const titleButtonStyle: React.CSSProperties = {
+const titleLinkStyle: React.CSSProperties = {
   flex: 1,
-  background: 'none',
-  border: 'none',
-  padding: 0,
+  textDecoration: 'none',
+  color: 'inherit',
   textAlign: 'left',
-  cursor: 'pointer',
 }
 
 const chevronButtonStyle: React.CSSProperties = {
