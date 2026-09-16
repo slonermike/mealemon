@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare": "lefthook install",
+    "prepare": "git rev-parse --git-dir 2>/dev/null && lefthook install || true",
     "dev": "node scripts/build-recipes.mjs && vite",
     "build": "node scripts/build-recipes.mjs && tsc && vite build",
     "preview": "vite preview",
