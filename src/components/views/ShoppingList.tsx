@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { usePlanStore, selectIsCheckedOff } from '@/store/planSlice'
 import { useRecipeStore } from '@/store/recipeSlice'
-import { useResolvedShoppingList } from '@/store/shoppingSelectors'
+import { useResolvedShoppingList, type ShoppingGroup } from '@/store/shoppingSelectors'
 import { useCheckoffSync } from '@/hooks/useCheckoffSync'
 import { useSessionStore } from '@/store/sessionSlice'
 import { formatAmount } from '@/lib/units'
@@ -38,8 +38,21 @@ function ShoppingRow({ item }: { item: ShoppingItem }) {
   )
 }
 
+function ShoppingSection({ group }: { group: ShoppingGroup }) {
+  return (
+    <section>
+      <div style={sectionHeaderStyle}>{group.label}</div>
+      <ul style={listStyle}>
+        {group.items.map((item) => (
+          <ShoppingRow key={item.ingredient_ref} item={item} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export function ShoppingList() {
-  const items = useResolvedShoppingList()
+  const groups = useResolvedShoppingList()
   const selected = usePlanStore((s) => s.selected)
   const syncState = useSessionStore((s) => s.syncState)
   const lastSyncedAt = useSessionStore((s) => s.lastSyncedAt)
@@ -76,11 +89,9 @@ export function ShoppingList() {
           </span>
         )}
       </div>
-      <ul style={listStyle}>
-        {items.map((item) => (
-          <ShoppingRow key={item.ingredient_ref} item={item} />
-        ))}
-      </ul>
+      {groups.map((group) => (
+        <ShoppingSection key={group.category} group={group} />
+      ))}
     </div>
   )
 }
@@ -106,6 +117,17 @@ const headingStyle: React.CSSProperties = {
 const syncLabelStyle: React.CSSProperties = {
   fontSize: 12,
   color: '#9ca3af',
+}
+
+const sectionHeaderStyle: React.CSSProperties = {
+  padding: '8px 16px 4px',
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: '#6b7280',
+  background: '#f9fafb',
+  borderBottom: '1px solid #f3f4f6',
 }
 
 const listStyle: React.CSSProperties = {
