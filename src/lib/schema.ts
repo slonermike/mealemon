@@ -46,6 +46,7 @@ export interface ExclusionMode {
 export interface PlanSelection {
   recipe_id: string
   servings: number
+  mode_overrides?: string[]
 }
 
 export interface CheckoffKey {

@@ -50,3 +50,6 @@ export const useRecipeStore = create<RecipeState>()((set, get) => ({
 export const selectRecipeById = (id: string) => (s: RecipeState) => s.recipes[id]
 
 export const selectAllRecipeIds = (s: RecipeState) => Object.keys(s.recipes)
+
+export const selectAllAllergenTags = (s: RecipeState): string[] =>
+  [...new Set(Object.values(s.registry).flatMap((e) => e.default_allergen_tags))].sort()

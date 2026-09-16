@@ -5,6 +5,7 @@ interface PlanState extends Plan {
   setServings: (recipe_id: string, servings: number) => void
   toggleRecipe: (recipe_id: string, base_servings: number) => void
   toggleMode: (mode: string) => void
+  toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
   toggleCheckoff: (key: CheckoffKey) => void
   loadPlan: (plan: Plan) => void
 }
@@ -46,6 +47,17 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
     })
   },
 
+  toggleRecipeMode: (recipe_id, mode, globalModes) => {
+    set((s) => ({
+      selected: s.selected.map((sel) => {
+        if (sel.recipe_id !== recipe_id) return sel
+        const current = sel.mode_overrides ?? globalModes
+        const next = current.includes(mode) ? current.filter((m) => m !== mode) : [...current, mode]
+        return { ...sel, mode_overrides: next }
+      }),
+    }))
+  },
+
   toggleCheckoff: (key) => {
     const { checked_off } = get()
     const match = (k: CheckoffKey) =>
@@ -62,6 +74,9 @@ export const selectIsRecipeSelected = (recipe_id: string) => (s: PlanState) =>
 
 export const selectServings = (recipe_id: string) => (s: PlanState) =>
   s.selected.find((sel: PlanSelection) => sel.recipe_id === recipe_id)?.servings ?? null
+
+export const selectRecipeModes = (recipe_id: string) => (s: PlanState) =>
+  s.selected.find((sel: PlanSelection) => sel.recipe_id === recipe_id)?.mode_overrides ?? null
 
 export const selectIsCheckedOff = (key: CheckoffKey) => (s: PlanState) =>
   s.checked_off.some(
