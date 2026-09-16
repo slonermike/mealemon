@@ -33,6 +33,9 @@ export function LoginScreen() {
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
+        <div style={heroWrapStyle}>
+          <div style={heroCircleStyle} />
+        </div>
         <h1 style={titleStyle}>{'Mealemon'}</h1>
         <form onSubmit={handleSubmit} style={formStyle}>
           <input
@@ -69,6 +72,23 @@ const cardStyle: React.CSSProperties = {
   padding: '32px 24px',
   width: '100%',
   maxWidth: 320,
+}
+
+const heroWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  marginBottom: 20,
+}
+
+const heroCircleStyle: React.CSSProperties = {
+  width: 140,
+  height: 140,
+  borderRadius: '50%',
+  backgroundImage: 'url(/login-hero.jpeg)',
+  backgroundSize: '220%',
+  backgroundPosition: '52% 18%',
+  border: '3px solid #e5e7eb',
+  flexShrink: 0,
 }
 
 const titleStyle: React.CSSProperties = {
