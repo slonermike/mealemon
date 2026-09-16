@@ -52,6 +52,12 @@ Evaluated alternatives and the reasoning behind what was chosen or rejected. Rec
 
 ---
 
+## Authentication
+
+**Decision:** Recorded in the content repo (`content/decisions.md`) — contains security-sensitive details about the credential scheme.
+
+---
+
 ## Checkoff sync strategy
 
 **Decision:** Vercel Blob, last-write-wins.
