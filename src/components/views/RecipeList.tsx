@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { Link } from '@tanstack/react-router'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
+import { GlobalSettingsWidget } from '@/components/ui/GlobalSettingsWidget'
 import { useRecipeStore, selectAllRecipeIds, selectRecipeById } from '@/store/recipeSlice'
 import {
   usePlanStore,
@@ -9,6 +10,7 @@ import {
   selectServings,
   selectRecipeModes,
 } from '@/store/planSlice'
+import { getIncompatibleSlots } from '@/lib/pipeline'
 
 function RecipeListItem({ recipeId }: { recipeId: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -19,6 +21,7 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
   const recipeModesSelector = useMemo(() => selectRecipeModes(recipeId), [recipeId])
 
   const recipe = useRecipeStore(recipeSelector)
+  const registry = useRecipeStore((s) => s.registry)
   const isSelected = usePlanStore(isSelectedSelector)
   const servings = usePlanStore(servingsSelector)
   const recipeModesOverride = usePlanStore(recipeModesSelector)
@@ -26,22 +29,27 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
 
   const activeModes = recipeModesOverride ?? globalModes
 
+  const incompatible = useMemo(() => {
+    if (!recipe) return []
+    return getIncompatibleSlots(recipe, globalModes, registry)
+  }, [recipe, globalModes, registry])
+
   if (!recipe) return null
 
+  const isIncompatible = incompatible.length > 0
   const planLine = isSelected
     ? `in plan: ${servings ?? recipe.base_servings} servings${activeModes.length > 0 ? `; excl: ${activeModes.join(', ')}` : ''}`
     : null
 
+  const itemBg = isIncompatible ? itemIncompatibleStyle : isSelected ? itemSelectedStyle : itemStyle
+
   return (
-    <li style={isSelected ? { ...itemStyle, ...itemSelectedStyle } : itemStyle}>
+    <li style={itemBg}>
       <div style={rowStyle}>
         <Link to={'/recipes/$recipeId'} params={{ recipeId }} style={titleLinkStyle}>
-          <div style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</div>
-          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
-            {recipe.base_servings}
-            {' servings · '}
-            {recipe.steps.length}
-            {' steps'}
+          <div style={titleRowStyle}>
+            <span style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</span>
+            {isIncompatible && <span style={incompatibleBadgeStyle}>{'Cannot Substitute'}</span>}
           </div>
           {planLine && <div style={planLineStyle}>{planLine}</div>}
         </Link>
@@ -63,7 +71,21 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
         </button>
       </div>
       {expanded && (
-        <div style={expandedPanelStyle}>
+        <div
+          style={
+            isIncompatible
+              ? expandedIncompatiblePanelStyle
+              : isSelected
+                ? expandedSelectedPanelStyle
+                : expandedPanelStyle
+          }
+        >
+          {isIncompatible && (
+            <div style={incompatibleListStyle}>
+              <span style={incompatibleListLabelStyle}>{'No substitute found: '}</span>
+              {incompatible.join(', ')}
+            </div>
+          )}
           <MealPlanWidget recipeId={recipeId} baseServings={recipe.base_servings} />
         </div>
       )}
@@ -81,7 +103,7 @@ export function RecipeList() {
   if (loadState === 'error') return <p style={{ padding: 24 }}>{'Failed to load recipes.'}</p>
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 0' }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 0 100px' }}>
       <h1 style={{ padding: '0 16px', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
         {'Recipes'}
       </h1>
@@ -90,6 +112,7 @@ export function RecipeList() {
           <RecipeListItem key={id} recipeId={id} />
         ))}
       </ul>
+      <GlobalSettingsWidget />
     </div>
   )
 }
@@ -103,11 +126,23 @@ const itemSelectedStyle: React.CSSProperties = {
   borderBottom: '1px solid #bfdbfe',
 }
 
+const itemIncompatibleStyle: React.CSSProperties = {
+  background: '#fef2f2',
+  borderBottom: '1px solid #fecaca',
+}
+
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   padding: '12px 16px',
   gap: 8,
+}
+
+const titleRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
 }
 
 const titleLinkStyle: React.CSSProperties = {
@@ -124,6 +159,16 @@ const planLineStyle: React.CSSProperties = {
   color: '#1d4ed8',
 }
 
+const incompatibleBadgeStyle: React.CSSProperties = {
+  padding: '1px 6px',
+  borderRadius: 4,
+  background: '#fee2e2',
+  color: '#dc2626',
+  fontSize: 11,
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
+}
+
 const chevronButtonStyle: React.CSSProperties = {
   background: 'none',
   border: 'none',
@@ -136,6 +181,28 @@ const chevronButtonStyle: React.CSSProperties = {
 
 const expandedPanelStyle: React.CSSProperties = {
   padding: '0 16px 16px',
+  borderTop: '1px solid #f3f4f6',
+  background: '#fafafa',
+}
+
+const expandedSelectedPanelStyle: React.CSSProperties = {
+  padding: '0 16px 16px',
   borderTop: '1px solid #bfdbfe',
   background: '#dbeafe',
+}
+
+const expandedIncompatiblePanelStyle: React.CSSProperties = {
+  padding: '0 16px 16px',
+  borderTop: '1px solid #fecaca',
+  background: '#fee2e2',
+}
+
+const incompatibleListStyle: React.CSSProperties = {
+  padding: '10px 0 8px',
+  fontSize: 13,
+  color: '#dc2626',
+}
+
+const incompatibleListLabelStyle: React.CSSProperties = {
+  fontWeight: 600,
 }

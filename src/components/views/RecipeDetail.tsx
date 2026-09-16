@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
 import { useRecipeStore, selectRecipeById } from '@/store/recipeSlice'
 import { usePlanStore, selectServings } from '@/store/planSlice'
-import { resolveSlot } from '@/lib/pipeline'
+import { resolveSlot, getIncompatibleSlots } from '@/lib/pipeline'
 import { formatAmount } from '@/lib/units'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
 import type { Recipe } from '@/lib/schema'
@@ -49,6 +49,12 @@ export function RecipeDetail() {
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
   const plannedServings = usePlanStore(servingsSelector)
+  const globalModes = usePlanStore((s) => s.active_modes)
+
+  const incompatible = useMemo(
+    () => (recipe ? getIncompatibleSlots(recipe, globalModes, registry) : []),
+    [recipe, globalModes, registry],
+  )
 
   const baseServings = recipe?.base_servings ?? 1
   const displayServings = plannedServings ?? baseServings
@@ -107,6 +113,13 @@ export function RecipeDetail() {
           {' steps'}
         </p>
 
+        {incompatible.length > 0 && (
+          <div style={incompatibleBannerStyle}>
+            <span style={{ fontWeight: 600 }}>{'Cannot Substitute: '}</span>
+            {incompatible.join(', ')}
+          </div>
+        )}
+
         <MealPlanWidget recipeId={recipeId} baseServings={recipe.base_servings} />
 
         <section style={sectionStyle}>
@@ -115,10 +128,15 @@ export function RecipeDetail() {
             {resolvedSlots.map(({ slot, resolved }) => {
               if (!resolved) {
                 if (slot.omissible) return null
+                const firstName = registry[slot.candidates[0]?.ingredient_ref]?.name ?? slot.id
                 return (
-                  <li key={slot.id} style={ingredientItemStyle}>
-                    <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>
-                      {'(excluded — no substitute)'}
+                  <li key={slot.id} style={{ ...ingredientItemStyle, color: '#dc2626' }}>
+                    <span style={{ ...ingredientAmountStyle, color: '#fca5a5' }}>{'—'}</span>
+                    <span>
+                      {firstName}
+                      <span style={{ fontStyle: 'italic', color: '#f87171', marginLeft: 6 }}>
+                        {'(no substitute)'}
+                      </span>
                     </span>
                   </li>
                 )
@@ -156,6 +174,16 @@ export function RecipeDetail() {
       </div>
     </div>
   )
+}
+
+const incompatibleBannerStyle: React.CSSProperties = {
+  marginBottom: 16,
+  padding: '10px 14px',
+  borderRadius: 8,
+  background: '#fee2e2',
+  border: '1px solid #fecaca',
+  fontSize: 13,
+  color: '#dc2626',
 }
 
 const containerStyle: React.CSSProperties = {

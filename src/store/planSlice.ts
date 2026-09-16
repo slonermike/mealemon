@@ -2,7 +2,9 @@ import { create } from 'zustand'
 import type { CheckoffKey, Plan, PlanSelection } from '@/lib/schema'
 
 interface PlanState extends Plan {
+  default_servings: number
   setServings: (recipe_id: string, servings: number) => void
+  setDefaultServings: (servings: number) => void
   toggleRecipe: (recipe_id: string, base_servings: number) => void
   toggleMode: (mode: string) => void
   toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
@@ -22,6 +24,7 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
   selected: [],
   active_modes: [],
   checked_off: [],
+  default_servings: 4,
 
   toggleRecipe: (recipe_id, base_servings) => {
     const { selected } = get()
@@ -38,6 +41,8 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
       selected: s.selected.map((sel) => (sel.recipe_id === recipe_id ? { ...sel, servings } : sel)),
     }))
   },
+
+  setDefaultServings: (default_servings) => set({ default_servings }),
 
   toggleMode: (mode) => {
     const { active_modes } = get()

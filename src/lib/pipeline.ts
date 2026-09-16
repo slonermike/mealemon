@@ -8,6 +8,19 @@ import type {
 } from './schema'
 import { isVolumeUnit, toTsp, coalesceVolume } from './units'
 
+export function getIncompatibleSlots(
+  recipe: Recipe,
+  activeExclusionTags: string[],
+  registry: Record<string, IngredientRegistryEntry>,
+): string[] {
+  return recipe.ingredients
+    .filter((slot) => !slot.omissible && resolveSlot(slot, activeExclusionTags, registry) === null)
+    .map((slot) => {
+      const ref = slot.candidates[0]?.ingredient_ref
+      return registry[ref]?.name ?? ref ?? slot.id
+    })
+}
+
 export function resolveSlot(
   slot: IngredientSlot,
   activeExclusionTags: string[],
