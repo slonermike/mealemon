@@ -64,8 +64,9 @@ export function RecipeList() {
   const ids = useRecipeStore(useShallow(selectAllRecipeIds))
   const loadState = useRecipeStore((s) => s.loadState)
 
-  if (loadState === 'idle' || loadState === 'loading')
+  if (loadState === 'idle' || loadState === 'loading') {
     return <p style={{ padding: 24 }}>{'Loading recipes…'}</p>
+  }
   if (loadState === 'error') return <p style={{ padding: 24 }}>{'Failed to load recipes.'}</p>
 
   return (

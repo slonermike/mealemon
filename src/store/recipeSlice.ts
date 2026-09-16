@@ -53,3 +53,19 @@ export const selectAllRecipeIds = (s: RecipeState) => Object.keys(s.recipes)
 
 export const selectAllAllergenTags = (s: RecipeState): string[] =>
   [...new Set(Object.values(s.registry).flatMap((e) => e.default_allergen_tags))].sort()
+
+export const selectRecipeAllergenTags =
+  (recipeId: string) =>
+  (s: RecipeState): string[] => {
+    const recipe = s.recipes[recipeId]
+    if (!recipe) return []
+    const tags = new Set<string>()
+    for (const slot of recipe.ingredients) {
+      for (const candidate of slot.candidates) {
+        const registryTags = s.registry[candidate.ingredient_ref]?.default_allergen_tags ?? []
+        const effectiveTags = candidate.allergen_tags ?? registryTags
+        for (const tag of effectiveTags) tags.add(tag)
+      }
+    }
+    return [...tags].sort()
+  }

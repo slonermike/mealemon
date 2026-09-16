@@ -6,6 +6,7 @@ interface PlanState extends Plan {
   toggleRecipe: (recipe_id: string, base_servings: number) => void
   toggleMode: (mode: string) => void
   toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
+  clearRecipeModes: (recipe_id: string) => void
   toggleCheckoff: (key: CheckoffKey) => void
   loadPlan: (plan: Plan) => void
 }
@@ -55,6 +56,14 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
         const next = current.includes(mode) ? current.filter((m) => m !== mode) : [...current, mode]
         return { ...sel, mode_overrides: next }
       }),
+    }))
+  },
+
+  clearRecipeModes: (recipe_id) => {
+    set((s) => ({
+      selected: s.selected.map((sel) =>
+        sel.recipe_id === recipe_id ? { ...sel, mode_overrides: [] } : sel,
+      ),
     }))
   },
 

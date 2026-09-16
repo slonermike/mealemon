@@ -6,7 +6,7 @@ import {
   selectServings,
   selectRecipeModes,
 } from '@/store/planSlice'
-import { useRecipeStore, selectAllAllergenTags } from '@/store/recipeSlice'
+import { useRecipeStore, selectRecipeAllergenTags } from '@/store/recipeSlice'
 import { ModeToggleList } from './ModeToggleList'
 import { ServingsStepper } from './ServingsStepper'
 
@@ -20,16 +20,17 @@ export function MealPlanWidget({ recipeId, baseServings }: Props) {
   const toggleRecipe = usePlanStore((s) => s.toggleRecipe)
   const setServings = usePlanStore((s) => s.setServings)
   const toggleRecipeMode = usePlanStore((s) => s.toggleRecipeMode)
+  const clearRecipeModes = usePlanStore((s) => s.clearRecipeModes)
 
   const isSelectedSelector = useMemo(() => selectIsRecipeSelected(recipeId), [recipeId])
   const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
   const recipeModesSelector = useMemo(() => selectRecipeModes(recipeId), [recipeId])
+  const allergenTagsSelector = useMemo(() => selectRecipeAllergenTags(recipeId), [recipeId])
 
   const isSelected = usePlanStore(isSelectedSelector)
   const servings = usePlanStore(servingsSelector)
   const recipeModesOverride = usePlanStore(recipeModesSelector)
-
-  const allTags = useRecipeStore(useShallow(selectAllAllergenTags))
+  const recipeTags = useRecipeStore(useShallow(allergenTagsSelector))
 
   // Per-recipe modes: if overrides exist use them, otherwise inherit global
   const activeModes = recipeModesOverride ?? globalModes
@@ -52,14 +53,17 @@ export function MealPlanWidget({ recipeId, baseServings }: Props) {
         servings={servings ?? baseServings}
         onChange={(s) => setServings(recipeId, s)}
       />
-      <div>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{'Exclusions'}</div>
-        <ModeToggleList
-          allTags={allTags}
-          activeTags={activeModes}
-          onToggle={(tag) => toggleRecipeMode(recipeId, tag, globalModes)}
-        />
-      </div>
+      {recipeTags.length > 0 && (
+        <div>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{'Exclusions'}</div>
+          <ModeToggleList
+            allTags={recipeTags}
+            activeTags={activeModes}
+            onToggle={(tag) => toggleRecipeMode(recipeId, tag, globalModes)}
+            onClear={() => clearRecipeModes(recipeId)}
+          />
+        </div>
+      )}
       <button
         type={'button'}
         onClick={() => toggleRecipe(recipeId, baseServings)}
