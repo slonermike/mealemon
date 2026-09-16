@@ -117,6 +117,32 @@ describe('buildShoppingList', () => {
     expect(items[0].occurrences).toHaveLength(2)
   })
 
+  it('omits omissible slot when all candidates excluded', () => {
+    const recipeWithOptionalNut: Recipe = {
+      schema_version: 1,
+      id: 'salad',
+      title: 'Salad',
+      base_servings: 2,
+      ingredients: [
+        { id: '0001', candidates: [{ ingredient_ref: 'lemon', amount: 1, unit: 'count' }] },
+        {
+          id: '0002',
+          omissible: true,
+          candidates: [{ ingredient_ref: 'almond-milk', amount: 0.5, unit: 'cup' }],
+        },
+      ],
+      steps: [],
+    }
+    const items = buildShoppingList(
+      { selected: [{ recipe_id: 'salad', servings: 2 }] },
+      { salad: recipeWithOptionalNut },
+      registry,
+      ['tree-nut'],
+    )
+    expect(items).toHaveLength(1)
+    expect(items[0].ingredient_ref).toBe('lemon')
+  })
+
   it('marks item non-combinable when units differ across recipes', () => {
     const recipe2: Recipe = {
       ...recipe,

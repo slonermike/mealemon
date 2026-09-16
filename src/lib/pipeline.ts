@@ -44,6 +44,9 @@ export function buildShoppingList(
 
     for (const slot of recipe.ingredients) {
       const resolved = resolveSlot(slot, activeExclusionTags, registry)
+      // Unresolved omissible slots are silently skipped.
+      // Unresolved non-omissible slots mark the recipe incompatible (caller should
+      // have excluded it at browse time, but we skip gracefully here too).
       if (!resolved) continue
 
       const existing = occurrencesByRef.get(resolved.ingredient_ref) ?? []

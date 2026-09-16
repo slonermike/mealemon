@@ -19,6 +19,7 @@ export interface IngredientCandidate {
 export interface IngredientSlot {
   id: string
   candidates: IngredientCandidate[]
+  omissible?: boolean
 }
 
 export interface Step {
