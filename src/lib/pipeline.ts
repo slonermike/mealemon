@@ -6,6 +6,7 @@ import type {
   ResolvedCandidate,
   ShoppingItem,
 } from './schema'
+import { isVolumeUnit, toTsp, coalesceVolume } from './units'
 
 export function resolveSlot(
   slot: IngredientSlot,
@@ -62,6 +63,22 @@ export function buildShoppingList(
   const items: ShoppingItem[] = []
 
   for (const [ingredient_ref, occurrences] of occurrencesByRef) {
+    // If all occurrences are volume units, normalize everything to tsp and
+    // coalesce up to the largest clean unit before combining.
+    const allVolume = occurrences.every((o) => isVolumeUnit(o.unit))
+    if (allVolume) {
+      const totalTsp = occurrences.reduce((sum, o) => sum + (toTsp(o.amount, o.unit) ?? 0), 0)
+      const { amount, unit } = coalesceVolume(totalTsp)
+      items.push({
+        ingredient_ref,
+        combinable: true,
+        display_mode: 'combined',
+        combined: { amount, unit },
+        occurrences,
+      })
+      continue
+    }
+
     const units = new Set(occurrences.map((o) => o.unit))
     const combinable = units.size === 1
     const combined = combinable

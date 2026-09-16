@@ -1,27 +1,11 @@
 import { useMemo } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
 import { useRecipeStore, selectRecipeById } from '@/store/recipeSlice'
-import { usePlanStore } from '@/store/planSlice'
+import { usePlanStore, selectServings } from '@/store/planSlice'
 import { resolveSlot } from '@/lib/pipeline'
+import { formatAmount } from '@/lib/units'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
 import type { Recipe } from '@/lib/schema'
-
-function formatAmount(amount: number): string {
-  const fractions: [number, string][] = [
-    [0.25, '¼'],
-    [0.333, '⅓'],
-    [0.5, '½'],
-    [0.667, '⅔'],
-    [0.75, '¾'],
-  ]
-  const whole = Math.floor(amount)
-  const frac = amount - whole
-  if (frac < 0.05) return whole === 0 ? '' : String(whole)
-  for (const [val, sym] of fractions) {
-    if (Math.abs(frac - val) < 0.05) return whole > 0 ? `${whole} ${sym}` : sym
-  }
-  return amount % 1 === 0 ? String(amount) : amount.toFixed(1)
-}
 
 function resolveStepContent(content: string, slotNameMap: Map<string, string>): React.ReactNode[] {
   const parts = content.split(/(\{[^}]+\})/)
@@ -39,7 +23,7 @@ function resolveStepContent(content: string, slotNameMap: Map<string, string>): 
   })
 }
 
-function useResolvedIngredients(recipe: Recipe) {
+function useResolvedIngredients(recipe: Recipe, scale: number) {
   const registry = useRecipeStore((s) => s.registry)
   const globalModes = usePlanStore((s) => s.active_modes)
   const selected = usePlanStore((s) => s.selected)
@@ -50,17 +34,25 @@ function useResolvedIngredients(recipe: Recipe) {
 
     return recipe.ingredients.map((slot) => {
       const resolved = resolveSlot(slot, activeModes, registry)
-      return { slot, resolved }
+      if (!resolved) return { slot, resolved }
+      return { slot, resolved: { ...resolved, amount: resolved.amount * scale } }
     })
-  }, [recipe, registry, selected, globalModes])
+  }, [recipe, registry, selected, globalModes, scale])
 }
 
 export function RecipeDetail() {
   const { recipeId } = useParams({ from: '/recipes/$recipeId' })
 
   const recipeSelector = useMemo(() => selectRecipeById(recipeId), [recipeId])
+  const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
+
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
+  const plannedServings = usePlanStore(servingsSelector)
+
+  const baseServings = recipe?.base_servings ?? 1
+  const displayServings = plannedServings ?? baseServings
+  const scale = displayServings / baseServings
 
   const resolvedSlots = useResolvedIngredients(
     recipe ?? {
@@ -71,6 +63,7 @@ export function RecipeDetail() {
       steps: [],
       schema_version: 1,
     },
+    scale,
   )
 
   const slotNameMap = useMemo(() => {
@@ -105,7 +98,10 @@ export function RecipeDetail() {
       <div style={{ padding: '0 16px 24px' }}>
         <h1 style={titleStyle}>{recipe.title}</h1>
         <p style={metaStyle}>
-          {recipe.base_servings}
+          {displayServings}
+          {displayServings !== baseServings && (
+            <span style={{ color: '#9ca3af' }}>{` (base ${baseServings})`}</span>
+          )}
           {' servings · '}
           {recipe.steps.length}
           {' steps'}
