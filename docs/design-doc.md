@@ -229,6 +229,119 @@ Two mutation patterns, handled differently: a full plan write (infrequent) versu
 - Ingredient density data for cross-category (volume↔weight) unit conversion
 - **Advance-prep / make-ahead steps.** Motivation: cook time estimates often don't account for prep (chopping, marinating) that could be front-loaded earlier in the day, and some recipes (e.g., proofing dough) genuinely require advance lead time rather than just benefiting from it. A tree/DAG model of step dependencies was considered and **rejected for now** — it's the formally correct representation (a step like "assemble" can depend on two independent prior branches, like dough and filling, which is a DAG relationship, not a tree), but it breaks the linear-prose readability that makes the current `{ingredient_id}`-in-step-text model work, and mainly exists to support a critical-path scheduling calculation ("what do I need to start first to have dinner ready at 6") that's a meaningfully bigger feature than just flagging steps. A **phases** model (recipe → linear phases → linear steps, e.g. Dough / Filling / Assembly) was identified as a promising middle ground — mirrors how cookbooks already structure multi-part recipes, avoids merge-point/dependency semantics entirely, and would be a natural place to later hang `advance.eligible` / `advance.required` flags at the phase level. For v1, this is unneeded: sequencing and timing are communicated the normal cookbook way ("meanwhile, in a separate bowl...") within the existing flat, linear step list — no schema change.
 
+## 12. Frontend Conventions
+
+These conventions are drawn from an existing codebase (SpaceLab) that applies the same philosophical commitments as this project — pure functions as source of truth, memoized selectors, no hidden state — using the same stack (React + Zustand + TypeScript). They are recorded here before implementation begins so they serve as the agreed starting point rather than being discovered or debated mid-build.
+
+### Zustand store organization
+
+State is split into **domain-separated stores**. No store holds derived data that another store already owns; cross-domain reads go through selectors at access time, not through store-to-store writes.
+
+Planned stores for this application:
+
+| Store | Responsibility |
+|---|---|
+| `useRecipeStore` | In-memory recipe data (from IndexedDB or versioned JSON fetch); cache version tracking; load state |
+| `usePlanStore` | Current week's selections, servings, active modes, and checkoff state — the full mutable plan |
+| `useSessionStore` | API sync state: in-flight requests, last-sync timestamp, Vercel Blob connectivity |
+| `useNavStore` | Active view, focused recipe ID — transient UI navigation state only |
+
+Each store file exports its hook and any associated pure selector functions. No store imports another store's module directly — cross-store composition is handled in custom hooks (see below).
+
+### Selector pattern
+
+Selectors are **pure functions** that take a store's state and return a derived value. Parametrized selectors are written as factory functions:
+
+```typescript
+// entitySelectors.ts
+export const selectRecipeById = (id: string) => (s: RecipeState) =>
+  s.recipes[id]
+
+export const selectRecipesForIds = (ids: string[]) => (s: RecipeState) =>
+  ids.map((id) => s.recipes[id]).filter(Boolean)
+```
+
+In components, parametrized selectors are wrapped in `useMemo` so the selector function reference is stable across renders:
+
+```typescript
+const selector = useMemo(() => selectRecipeById(recipeId), [recipeId])
+const recipe = useRecipeStore(selector)
+```
+
+For selectors that return arrays or objects (new reference on every call), use `useShallow` from `zustand/react/shallow` to prevent spurious re-renders:
+
+```typescript
+import {useShallow} from 'zustand/react/shallow'
+const selectedIds = usePlanStore(useShallow((s) => Object.keys(s.selected)))
+```
+
+### Memoization strategy
+
+- `useMemo` for derived computations — in particular, the shopping list pipeline is computed as `useMemo(() => buildShoppingList(...), [deps])`, never stored redundantly in Zustand.
+- `useCallback` for event handlers passed as props to child components.
+- `useRef` for values that must persist across renders without triggering re-renders (e.g., debounce lock flags).
+- No `React.memo` by default — reach for it only after a measured render bottleneck, not speculatively.
+
+### Cross-store derived hooks
+
+When a computed value requires data from two stores, write a **custom hook** that wires them together via `useCallback` as the Zustand selector. This keeps each store subscription minimal and avoids redundant re-renders:
+
+```typescript
+export function useResolvedShoppingList() {
+  const selected = usePlanStore((s) => s.selected)
+  const activeModes = usePlanStore((s) => s.activeModes)
+  const exclusionTags = useRecipeStore(
+    useCallback((s) => resolveExclusionTags(s.modes, activeModes), [activeModes])
+  )
+  return useMemo(
+    () => buildShoppingList(selected, exclusionTags),
+    [selected, exclusionTags],
+  )
+}
+```
+
+The shopping list is never stored in Zustand — it is always a derived value. This is the direct application of §6's "pure function, no hidden state" principle to the UI layer.
+
+### Engine functions are framework-free
+
+All pipeline logic from §6 lives in the engine package as plain TypeScript functions with no React or Zustand imports. They are unit-testable with no DOM, no store setup, and no test doubles for framework behavior. The application imports engine functions and calls them from `useMemo` or store actions — the engine never reaches into the app.
+
+### No React Context API
+
+State that needs to be shared across components lives in Zustand, not React Context. Context introduces implicit re-render coupling that's hard to reason about and harder to optimize; Zustand subscriptions are opt-in by selector. The only acceptable use of Context is for values that are truly static for the lifetime of a component subtree (e.g., a theme token that never changes at runtime).
+
+### Component conventions
+
+- All components are functional. No class components.
+- Components bail out early on missing data: `if (!recipe) return null`.
+- No prop-threading through more than two component levels — if a value is needed three levels deep, access the store directly at the consumption site rather than passing it through intermediaries.
+- `forwardRef` + `displayName` for any reusable UI primitives that need ref access.
+- Radix UI (or a similarly accessibility-first headless library) for interactive primitives: modals, dropdowns, checkboxes — not hand-rolled.
+
+### File layout (planned)
+
+```
+app/
+  src/
+    store/
+      recipeSlice.ts       # useRecipeStore + selectors
+      planSlice.ts         # usePlanStore + selectors
+      sessionSlice.ts      # useSessionStore
+      navSlice.ts          # useNavStore
+      shoppingSelectors.ts # cross-store derived hooks (useResolvedShoppingList, etc.)
+    components/
+      views/               # top-level view components, one per nav destination
+      ui/                  # reusable primitives (buttons, modals, list items)
+    api/
+      plans.ts             # fetch/mutate plan via Vercel API
+      checkoff.ts          # checkoff toggle endpoint
+engine/
+  src/
+    pipeline.ts            # resolve → scale → normalize → aggregate → round
+    schema.ts              # TypeScript types for Recipe, Ingredient, Plan, etc.
+    validation.ts          # JSON Schema validator wrapper
+```
+
 ## 11. Summary of Key Decisions
 
 - **Public engine / private data split**, driven by the recognition that recipe content carries copyright even after reformatting — the schema and pipeline are open-sourceable; the recipes never are, unless independently authored.
