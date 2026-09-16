@@ -46,18 +46,19 @@ export function buildShoppingList(
   plan: Pick<Plan, 'selected'>,
   recipes: Record<string, Recipe>,
   registry: Record<string, IngredientRegistryEntry>,
-  activeExclusionTags: string[],
+  globalExclusionTags: string[],
 ): ShoppingItem[] {
   type OccurrenceMap = Map<string, { recipe_id: string; amount: number; unit: string }[]>
   const occurrencesByRef: OccurrenceMap = new Map()
 
-  for (const { recipe_id, servings } of plan.selected) {
+  for (const { recipe_id, servings, mode_overrides } of plan.selected) {
     const recipe = recipes[recipe_id]
     if (!recipe) continue
     const scale = servings / recipe.base_servings
+    const exclusionTags = mode_overrides ?? globalExclusionTags
 
     for (const slot of recipe.ingredients) {
-      const resolved = resolveSlot(slot, activeExclusionTags, registry)
+      const resolved = resolveSlot(slot, exclusionTags, registry)
       // Unresolved omissible slots are silently skipped.
       // Unresolved non-omissible slots mark the recipe incompatible (caller should
       // have excluded it at browse time, but we skip gracefully here too).

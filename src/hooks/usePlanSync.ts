@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { usePlanStore } from '@/store/planSlice'
 import { useSessionStore } from '@/store/sessionSlice'
 import type { Plan } from '@/lib/schema'
@@ -10,12 +11,14 @@ function planApiUrl(weekId: string) {
 }
 
 export function usePlanSync() {
-  const plan = usePlanStore((s) => ({
-    week_of: s.week_of,
-    selected: s.selected,
-    active_modes: s.active_modes,
-    checked_off: s.checked_off,
-  }))
+  const plan = usePlanStore(
+    useShallow((s) => ({
+      week_of: s.week_of,
+      selected: s.selected,
+      active_modes: s.active_modes,
+      checked_off: s.checked_off,
+    })),
+  )
   const loadPlan = usePlanStore((s) => s.loadPlan)
   const { setSyncing, setSynced, setSyncError } = useSessionStore()
 

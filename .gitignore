@@ -4,3 +4,5 @@ dist/
 .env.local
 public/recipes.json
 public/recipes-version.json
+.vercel
+.env*
