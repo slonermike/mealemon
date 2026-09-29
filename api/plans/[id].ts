@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'POST') {
     const body = req.body as Partial<Plan>
-    if (!body || !Array.isArray(body.selected)) {
+    if (!body) {
       res.status(400).json({ error: 'Invalid plan body' })
       return
     }
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const updated: Plan = {
       ...existing,
-      selected: body.selected,
+      selected: Array.isArray(body.selected) ? body.selected : existing.selected,
       active_modes: body.active_modes ?? existing.active_modes,
       checked_off: body.checked_off ?? existing.checked_off,
       label: body.label ?? existing.label,

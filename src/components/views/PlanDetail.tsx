@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { usePlansStore, selectActivePlan } from '@/store/plansSlice'
-import { useRecipeStore } from '@/store/recipeSlice'
 import { useAuthStore } from '@/store/authSlice'
+import { RecipeListItem } from '@/components/views/RecipeList'
 import type { Plan, PlanStatus } from '@/lib/schema'
 
 export function PlanDetail() {
@@ -10,9 +10,7 @@ export function PlanDetail() {
   const setActivePlan = usePlansStore((s) => s.setActivePlan)
   const activePlan = usePlansStore(selectActivePlan)
   const setPlanStatus = usePlansStore((s) => s.setPlanStatus)
-  const toggleRecipe = usePlansStore((s) => s.toggleRecipe)
   const deletePlan = usePlansStore((s) => s.deletePlan)
-  const recipes = useRecipeStore((s) => s.recipes)
   const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated)
   const navigate = useNavigate()
 
@@ -87,30 +85,11 @@ export function PlanDetail() {
         {plan.selected.length === 0 ? (
           <p style={emptyStyle}>{'No recipes yet. Add some from the Recipes tab.'}</p>
         ) : (
-          plan.selected.map((sel) => {
-            const recipe = recipes[sel.recipe_id]
-            const name = recipe?.title ?? sel.recipe_id
-            return (
-              <div key={sel.recipe_id} style={recipeRowStyle}>
-                <div style={recipeInfoStyle}>
-                  <span style={recipeNameStyle}>{name}</span>
-                  <span style={recipeMetaStyle}>
-                    {sel.servings} {sel.servings === 1 ? 'serving' : 'servings'}
-                    {sel.shopped ? ' · shopped' : ''}
-                  </span>
-                </div>
-                {plan.status !== 'done' && (
-                  <button
-                    style={removeButtonStyle}
-                    onClick={() => toggleRecipe(sel.recipe_id)}
-                    aria-label={`Remove ${name}`}
-                  >
-                    {'✕'}
-                  </button>
-                )}
-              </div>
-            )
-          })
+          <ul style={recipeListStyle}>
+            {plan.selected.map((sel) => (
+              <RecipeListItem key={sel.recipe_id} recipeId={sel.recipe_id} />
+            ))}
+          </ul>
         )}
       </section>
 
@@ -205,30 +184,7 @@ const countStyle: React.CSSProperties = { fontWeight: 400, textTransform: 'none'
 
 const emptyStyle: React.CSSProperties = { color: '#6b7280', fontSize: 14, margin: 0 }
 
-const recipeRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '10px 12px',
-  borderRadius: 8,
-  border: '1px solid #e5e7eb',
-  background: '#fff',
-}
-
-const recipeInfoStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2 }
-
-const recipeNameStyle: React.CSSProperties = { fontSize: 15, fontWeight: 500 }
-
-const recipeMetaStyle: React.CSSProperties = { fontSize: 12, color: '#9ca3af' }
-
-const removeButtonStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  fontSize: 16,
-  color: '#9ca3af',
-  cursor: 'pointer',
-  padding: '4px 6px',
-}
+const recipeListStyle: React.CSSProperties = { listStyle: 'none', padding: 0, margin: 0 }
 
 const deleteButtonStyle: React.CSSProperties = {
   marginTop: 32,

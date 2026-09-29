@@ -18,7 +18,7 @@ import {
 } from '@/store/plansSlice'
 import { getIncompatibleSlots } from '@/lib/pipeline'
 
-function RecipeListItem({ recipeId }: { recipeId: string }) {
+export function RecipeListItem({ recipeId }: { recipeId: string }) {
   const [expanded, setExpanded] = useState(false)
 
   const recipeSelector = useMemo(() => selectRecipeById(recipeId), [recipeId])
