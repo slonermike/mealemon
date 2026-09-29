@@ -1,7 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isAuthenticated } from '../_auth'
+import { isAuthenticated } from '../../src/lib/apiAuth'
+import {
+  readPlan,
+  writePlan,
+  deletePlanBlob,
+  readPlanIndex,
+  writePlanIndex,
+} from '../../src/lib/planBlob'
 import type { Plan } from '../../src/lib/schema'
-import { readPlan, writePlan, deletePlanBlob, readPlanIndex, writePlanIndex } from './_planBlob'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAuthenticated(req)) {

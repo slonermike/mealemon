@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isAuthenticated } from '../../_auth'
-import { readPlan, writePlan } from '../_planBlob'
+import { isAuthenticated } from '../../../src/lib/apiAuth'
+import { readPlan, writePlan } from '../../../src/lib/planBlob'
 import type { CheckoffKey } from '../../../src/lib/schema'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

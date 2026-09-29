@@ -1,8 +1,8 @@
 import * as crypto from 'crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { isAuthenticated } from '../_auth'
+import { isAuthenticated } from '../../src/lib/apiAuth'
+import { readPlanIndex, writePlanIndex, writePlan, defaultPlanLabel } from '../../src/lib/planBlob'
 import type { Plan } from '../../src/lib/schema'
-import { readPlanIndex, writePlanIndex, writePlan, defaultPlanLabel } from './_planBlob'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAuthenticated(req)) {
