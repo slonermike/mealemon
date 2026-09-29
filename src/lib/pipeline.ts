@@ -1,5 +1,5 @@
 import type {
-  ActivePlan,
+  Plan,
   IngredientRegistryEntry,
   IngredientSlot,
   Recipe,
@@ -43,7 +43,7 @@ export function resolveSlot(
 }
 
 export function buildShoppingList(
-  plan: Pick<ActivePlan, 'selected'>,
+  plan: Pick<Plan, 'selected'>,
   recipes: Record<string, Recipe>,
   registry: Record<string, IngredientRegistryEntry>,
   globalExclusionTags: string[],

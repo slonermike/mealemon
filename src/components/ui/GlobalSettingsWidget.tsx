@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { usePlanStore } from '@/store/planSlice'
+import { usePlansStore, selectActivePlan } from '@/store/plansSlice'
 import { useRecipeStore, selectAllAllergenTags } from '@/store/recipeSlice'
 import { ModeToggleList } from './ModeToggleList'
 import { ServingsStepper } from './ServingsStepper'
@@ -8,10 +8,10 @@ import { ServingsStepper } from './ServingsStepper'
 export function GlobalSettingsWidget() {
   const [open, setOpen] = useState(false)
 
-  const activeModes = usePlanStore((s) => s.active_modes)
-  const toggleMode = usePlanStore((s) => s.toggleMode)
-  const defaultServings = usePlanStore((s) => s.default_servings)
-  const setDefaultServings = usePlanStore((s) => s.setDefaultServings)
+  const activeModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const toggleMode = usePlansStore((s) => s.toggleMode)
+  const defaultServings = usePlansStore((s) => s.default_servings)
+  const setDefaultServings = usePlansStore((s) => s.setDefaultServings)
 
   const allTags = useRecipeStore(useShallow(selectAllAllergenTags))
 

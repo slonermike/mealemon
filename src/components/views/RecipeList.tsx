@@ -10,11 +10,12 @@ import {
   selectRecipeAllergenTags,
 } from '@/store/recipeSlice'
 import {
-  usePlanStore,
+  usePlansStore,
   selectIsRecipeSelected,
   selectServings,
   selectRecipeModes,
-} from '@/store/planSlice'
+  selectActivePlan,
+} from '@/store/plansSlice'
 import { getIncompatibleSlots } from '@/lib/pipeline'
 
 function RecipeListItem({ recipeId }: { recipeId: string }) {
@@ -29,10 +30,10 @@ function RecipeListItem({ recipeId }: { recipeId: string }) {
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
   const recipeTags = useRecipeStore(useShallow(allergenTagsSelector))
-  const isSelected = usePlanStore(isSelectedSelector)
-  const servings = usePlanStore(servingsSelector)
-  const recipeModesOverride = usePlanStore(recipeModesSelector)
-  const globalModes = usePlanStore((s) => s.active_modes)
+  const isSelected = usePlansStore(isSelectedSelector)
+  const servings = usePlansStore(servingsSelector)
+  const recipeModesOverride = usePlansStore(recipeModesSelector)
+  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
 
   const hasOverride = recipeModesOverride !== null && recipeModesOverride !== undefined
   const activeModes = hasOverride ? recipeModesOverride! : globalModes

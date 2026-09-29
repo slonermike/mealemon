@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { buildShoppingList } from '@/lib/pipeline'
 import type { ShoppingItem } from '@/lib/schema'
-import { usePlanStore } from './planSlice'
+import { usePlansStore, selectActivePlan } from './plansSlice'
 import { useRecipeStore } from './recipeSlice'
 
 export interface ShoppingGroup {
@@ -21,17 +22,10 @@ const CATEGORY_ORDER: { key: string; label: string }[] = [
 ]
 
 export function useResolvedShoppingList(): ShoppingGroup[] {
-  const selected = usePlanStore((s) => s.selected)
-  const activeModes = usePlanStore((s) => s.active_modes)
+  const selected = usePlansStore(useShallow((s) => selectActivePlan(s)?.selected ?? []))
+  const activeModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
 
-  const exclusionTags = useRecipeStore(
-    useCallback(
-      (_s) => {
-        return activeModes
-      },
-      [activeModes],
-    ),
-  )
+  const exclusionTags = useRecipeStore(useCallback((_s) => activeModes, [activeModes]))
 
   const recipes = useRecipeStore((s) => s.recipes)
   const registry = useRecipeStore((s) => s.registry)
@@ -56,7 +50,6 @@ export function useResolvedShoppingList(): ShoppingGroup[] {
         byCategory.delete(key)
       }
     }
-    // Any categories not in CATEGORY_ORDER go at the end
     for (const [cat, bucket] of byCategory) {
       groups.push({ category: cat, label: cat, items: bucket })
     }

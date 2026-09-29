@@ -2,12 +2,13 @@ import { useEffect } from 'react'
 import { Outlet, Link, useRouterState } from '@tanstack/react-router'
 import { useRecipeStore } from '@/store/recipeSlice'
 import { usePlanSync } from '@/hooks/usePlanSync'
+import { usePlansSync } from '@/hooks/usePlansSync'
 
 function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const atRecipes = pathname === '/' || pathname.startsWith('/recipes/')
   const atShopping = pathname === '/shopping'
-  const atMeals = pathname === '/meals'
+  const atPlans = pathname === '/plans' || pathname.startsWith('/plans/')
 
   return (
     <nav style={navStyle}>
@@ -17,8 +18,8 @@ function BottomNav() {
       <Link to={'/shopping'} style={tabStyle(atShopping)}>
         {'Shopping'}
       </Link>
-      <Link to={'/meals'} style={tabStyle(atMeals)}>
-        {'Meals'}
+      <Link to={'/plans'} style={tabStyle(atPlans)}>
+        {'Plans'}
       </Link>
     </nav>
   )
@@ -30,6 +31,7 @@ export function RootLayout() {
     void load()
   }, [load])
 
+  usePlansSync()
   usePlanSync()
 
   return (

@@ -56,27 +56,30 @@ export interface CheckoffKey {
   recipe_id?: string
 }
 
-export interface ActivePlan {
+export type PlanStatus = 'planning' | 'shopping' | 'done'
+
+export interface Plan {
+  id: string
   schema_version: number
+  label: string
+  created_at: string
+  status: PlanStatus
   selected: PlanSelection[]
   active_modes: string[]
   checked_off: CheckoffKey[]
 }
 
-export interface MealRecord {
+export interface PlanSummary {
   id: string
-  recipe_id: string
-  servings: number
-  mode_overrides?: string[]
-  active_modes: string[]
-  checked_off: CheckoffKey[]
-  shopped: boolean
-  completed_at: string
+  label: string
+  status: PlanStatus
+  created_at: string
+  recipe_count: number
 }
 
-export interface MealHistory {
+export interface PlanIndex {
   schema_version: number
-  meals: MealRecord[]
+  plans: PlanSummary[]
 }
 
 export interface ResolvedCandidate {

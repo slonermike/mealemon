@@ -1,19 +1,31 @@
 import { useMemo } from 'react'
-import { usePlanStore, selectIsCheckedOff } from '@/store/planSlice'
+import { useShallow } from 'zustand/react/shallow'
+import { usePlansStore, selectIsCheckedOff } from '@/store/plansSlice'
 import { useRecipeStore } from '@/store/recipeSlice'
 import { useResolvedShoppingList, type ShoppingGroup } from '@/store/shoppingSelectors'
-import { useCheckoffSync } from '@/hooks/useCheckoffSync'
 import { useSessionStore } from '@/store/sessionSlice'
+import { useAuthStore } from '@/store/authSlice'
 import { formatAmount } from '@/lib/units'
 import type { CheckoffKey, ShoppingItem } from '@/lib/schema'
 
 function ShoppingRow({ item }: { item: ShoppingItem }) {
   const registry = useRecipeStore((s) => s.registry)
-  const { toggle } = useCheckoffSync()
+  const activePlanId = usePlansStore((s) => s.activePlanId)
+  const toggleCheckoff = usePlansStore((s) => s.toggleCheckoff)
 
   const combinedKey: CheckoffKey = { ingredient_ref: item.ingredient_ref }
   const isCheckedSelector = useMemo(() => selectIsCheckedOff(combinedKey), [item.ingredient_ref]) // eslint-disable-line react-hooks/exhaustive-deps
-  const checked = usePlanStore(isCheckedSelector)
+  const checked = usePlansStore(isCheckedSelector)
+
+  function toggle(key: CheckoffKey) {
+    toggleCheckoff(key)
+    if (!activePlanId) return
+    fetch(`/api/plans/${activePlanId}/checkoff`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...key, checked: !checked }),
+    }).catch(() => toggleCheckoff(key))
+  }
 
   const name = registry[item.ingredient_ref]?.name ?? item.ingredient_ref
   const amt = formatAmount(item.combined.amount)
@@ -53,9 +65,28 @@ function ShoppingSection({ group }: { group: ShoppingGroup }) {
 
 export function ShoppingList() {
   const groups = useResolvedShoppingList()
-  const selected = usePlanStore((s) => s.selected)
+  const activePlanId = usePlansStore((s) => s.activePlanId)
+  const planStatus = usePlansStore((s) =>
+    s.activePlanId ? s.plans[s.activePlanId]?.status : undefined,
+  )
+  const selected = usePlansStore(
+    useShallow((s) => (s.activePlanId ? (s.plans[s.activePlanId]?.selected ?? []) : [])),
+  )
+  const setPlanStatus = usePlansStore((s) => s.setPlanStatus)
+  const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated)
   const syncState = useSessionStore((s) => s.syncState)
   const lastSyncedAt = useSessionStore((s) => s.lastSyncedAt)
+
+  async function handleStartShopping() {
+    if (!activePlanId) return
+    setPlanStatus(activePlanId, 'shopping')
+    const res = await fetch(`/api/plans/${activePlanId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'shopping' }),
+    })
+    if (res.status === 401) setUnauthenticated()
+  }
 
   if (selected.length === 0) {
     return (
@@ -77,6 +108,8 @@ export function ShoppingList() {
           ? `Saved ${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
           : null
 
+  const isPlanning = planStatus === 'planning'
+
   return (
     <div style={containerStyle}>
       <div style={headerRowStyle}>
@@ -89,9 +122,19 @@ export function ShoppingList() {
           </span>
         )}
       </div>
-      {groups.map((group) => (
-        <ShoppingSection key={group.category} group={group} />
-      ))}
+      {isPlanning && (
+        <div style={planningBannerStyle}>
+          <span style={bannerTextStyle}>{'Not in shopping mode yet.'}</span>
+          <button style={startShoppingButtonStyle} onClick={handleStartShopping}>
+            {'Start Shopping'}
+          </button>
+        </div>
+      )}
+      <div style={isPlanning ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>
+        {groups.map((group) => (
+          <ShoppingSection key={group.category} group={group} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -117,6 +160,34 @@ const headingStyle: React.CSSProperties = {
 const syncLabelStyle: React.CSSProperties = {
   fontSize: 12,
   color: '#9ca3af',
+}
+
+const planningBannerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  margin: '0 16px 8px',
+  padding: '10px 14px',
+  borderRadius: 10,
+  background: '#eff6ff',
+  border: '1px solid #bfdbfe',
+}
+
+const bannerTextStyle: React.CSSProperties = {
+  fontSize: 14,
+  color: '#1e40af',
+}
+
+const startShoppingButtonStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  padding: '6px 14px',
+  borderRadius: 8,
+  border: 'none',
+  background: '#2563eb',
+  color: '#fff',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {

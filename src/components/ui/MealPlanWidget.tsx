@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
-  usePlanStore,
+  usePlansStore,
   selectIsRecipeSelected,
   selectServings,
   selectRecipeModes,
-} from '@/store/planSlice'
+} from '@/store/plansSlice'
 import { useRecipeStore, selectRecipeAllergenTags } from '@/store/recipeSlice'
 import { ModeToggleList } from './ModeToggleList'
 import { ServingsStepper } from './ServingsStepper'
@@ -15,20 +15,23 @@ interface Props {
 }
 
 export function MealPlanWidget({ recipeId }: Props) {
-  const globalModes = usePlanStore((s) => s.active_modes)
-  const toggleRecipe = usePlanStore((s) => s.toggleRecipe)
-  const setServings = usePlanStore((s) => s.setServings)
-  const toggleRecipeMode = usePlanStore((s) => s.toggleRecipeMode)
-  const resetRecipeModes = usePlanStore((s) => s.resetRecipeModes)
+  const activePlanId = usePlansStore((s) => s.activePlanId)
+  const globalModes = usePlansStore(
+    useShallow((s) => s.plans[s.activePlanId ?? '']?.active_modes ?? []),
+  )
+  const toggleRecipe = usePlansStore((s) => s.toggleRecipe)
+  const setServings = usePlansStore((s) => s.setServings)
+  const toggleRecipeMode = usePlansStore((s) => s.toggleRecipeMode)
+  const resetRecipeModes = usePlansStore((s) => s.resetRecipeModes)
 
   const isSelectedSelector = useMemo(() => selectIsRecipeSelected(recipeId), [recipeId])
   const servingsSelector = useMemo(() => selectServings(recipeId), [recipeId])
   const recipeModesSelector = useMemo(() => selectRecipeModes(recipeId), [recipeId])
   const allergenTagsSelector = useMemo(() => selectRecipeAllergenTags(recipeId), [recipeId])
 
-  const isSelected = usePlanStore(isSelectedSelector)
-  const servings = usePlanStore(servingsSelector)
-  const recipeModesOverride = usePlanStore(recipeModesSelector)
+  const isSelected = usePlansStore(isSelectedSelector)
+  const servings = usePlansStore(servingsSelector)
+  const recipeModesOverride = usePlansStore(recipeModesSelector)
   const recipeTags = useRecipeStore(useShallow(allergenTagsSelector))
 
   const hasOverride = recipeModesOverride !== null && recipeModesOverride !== undefined
@@ -39,6 +42,10 @@ export function MealPlanWidget({ recipeId }: Props) {
     () => globalModes.filter((tag) => !activeModes.includes(tag) && recipeTags.includes(tag)),
     [globalModes, activeModes, recipeTags],
   )
+
+  if (!activePlanId) {
+    return <p style={noPlanStyle}>{'Open or create a plan to add recipes.'}</p>
+  }
 
   if (!isSelected) {
     return (
@@ -75,6 +82,12 @@ export function MealPlanWidget({ recipeId }: Props) {
       </button>
     </div>
   )
+}
+
+const noPlanStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: '#6b7280',
+  margin: 0,
 }
 
 const addButtonStyle: React.CSSProperties = {

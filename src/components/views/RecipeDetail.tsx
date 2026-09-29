@@ -1,7 +1,13 @@
 import { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useParams, Link } from '@tanstack/react-router'
 import { useRecipeStore, selectRecipeById } from '@/store/recipeSlice'
-import { usePlanStore, selectServings, selectRecipeModes } from '@/store/planSlice'
+import {
+  usePlansStore,
+  selectServings,
+  selectRecipeModes,
+  selectActivePlan,
+} from '@/store/plansSlice'
 import { resolveSlot, getIncompatibleSlots } from '@/lib/pipeline'
 import { formatAmount } from '@/lib/units'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
@@ -25,8 +31,8 @@ function resolveStepContent(content: string, slotNameMap: Map<string, string>): 
 
 function useResolvedIngredients(recipe: Recipe, scale: number) {
   const registry = useRecipeStore((s) => s.registry)
-  const globalModes = usePlanStore((s) => s.active_modes)
-  const selected = usePlanStore((s) => s.selected)
+  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const selected = usePlansStore((s) => selectActivePlan(s)?.selected ?? [])
 
   return useMemo(() => {
     const sel = selected.find((s) => s.recipe_id === recipe.id)
@@ -49,9 +55,9 @@ export function RecipeDetail() {
 
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
-  const plannedServings = usePlanStore(servingsSelector)
-  const globalModes = usePlanStore((s) => s.active_modes)
-  const recipeModesOverride = usePlanStore(recipeModesSelector)
+  const plannedServings = usePlansStore(servingsSelector)
+  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const recipeModesOverride = usePlansStore(recipeModesSelector)
 
   const activeModes =
     recipeModesOverride !== null && recipeModesOverride !== undefined
@@ -63,7 +69,7 @@ export function RecipeDetail() {
     [recipe, activeModes, registry],
   )
 
-  const defaultServings = usePlanStore((s) => s.default_servings)
+  const defaultServings = usePlansStore((s) => s.default_servings)
   const baseServings = recipe?.base_servings ?? 1
   const displayServings = plannedServings ?? defaultServings
   const scale = displayServings / baseServings

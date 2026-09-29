@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { useMealsStore } from '@/store/mealsSlice'
+import { usePlansStore } from '@/store/plansSlice'
 import { useAuthStore } from '@/store/authSlice'
-import type { MealHistory } from '@/lib/schema'
+import type { PlanIndex } from '@/lib/schema'
 
-export function useMealsSync() {
-  const loadHistory = useMealsStore((s) => s.loadHistory)
+export function usePlansSync() {
+  const loadPlanIndex = usePlansStore((s) => s.loadPlanIndex)
   const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated)
   const loadedRef = useRef(false)
 
@@ -12,18 +12,18 @@ export function useMealsSync() {
     if (loadedRef.current) return
     loadedRef.current = true
 
-    fetch('/api/meals/history')
+    fetch('/api/plans')
       .then((res) => {
         if (res.status === 401) {
           setUnauthenticated()
           return null
         }
         if (!res.ok) throw new Error(`${res.status}`)
-        return res.json() as Promise<MealHistory>
+        return res.json() as Promise<PlanIndex>
       })
       .then((data) => {
-        if (data) loadHistory(data.meals)
+        if (data) loadPlanIndex(data.plans)
       })
       .catch(console.error)
-  }, [loadHistory, setUnauthenticated])
+  }, [loadPlanIndex, setUnauthenticated])
 }

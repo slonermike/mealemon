@@ -1,42 +1,38 @@
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { usePlanStore } from '@/store/planSlice'
+import { usePlansStore, selectActivePlan } from '@/store/plansSlice'
 import { useSessionStore } from '@/store/sessionSlice'
 import { useAuthStore } from '@/store/authSlice'
-import type { ActivePlan } from '@/lib/schema'
+import type { Plan } from '@/lib/schema'
 
 const DEBOUNCE_MS = 1000
-const API_URL = '/api/plans/active'
 
 export function usePlanSync() {
-  const plan = usePlanStore(
-    useShallow((s) => ({
-      selected: s.selected,
-      active_modes: s.active_modes,
-      checked_off: s.checked_off,
-    })),
-  )
-  const loadPlan = usePlanStore((s) => s.loadPlan)
+  const activePlanId = usePlansStore((s) => s.activePlanId)
+  const activePlan = usePlansStore(useShallow(selectActivePlan))
+  const loadPlan = usePlansStore((s) => s.loadPlan)
   const { setSyncing, setSynced, setSyncError } = useSessionStore()
   const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated)
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>('')
-  const loadedRef = useRef(false)
+  const loadedPlanIdRef = useRef<string | null>(null)
 
-  // Load plan from server on mount
+  // Load plan from server when activePlanId changes and we don't have it yet
   useEffect(() => {
-    if (loadedRef.current) return
-    loadedRef.current = true
+    if (!activePlanId) return
+    if (loadedPlanIdRef.current === activePlanId) return
+    loadedPlanIdRef.current = activePlanId
 
-    fetch(API_URL)
+    fetch(`/api/plans/${activePlanId}`)
       .then((res) => {
         if (res.status === 401) {
           setUnauthenticated()
           return null
         }
+        if (res.status === 404) return null
         if (!res.ok) throw new Error(`${res.status}`)
-        return res.json() as Promise<ActivePlan>
+        return res.json() as Promise<Plan>
       })
       .then((remote) => {
         if (remote) {
@@ -45,18 +41,19 @@ export function usePlanSync() {
         }
       })
       .catch((err) => setSyncError(err))
-  }, [loadPlan, setSyncError, setUnauthenticated])
+  }, [activePlanId, loadPlan, setSyncError, setUnauthenticated])
 
-  // Debounced save on any plan change
+  // Debounced save when active plan data changes
   useEffect(() => {
-    const serialized = JSON.stringify(plan)
+    if (!activePlanId || !activePlan) return
+    const serialized = JSON.stringify(activePlan)
     if (serialized === lastSavedRef.current) return
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
 
     debounceTimer.current = setTimeout(() => {
       setSyncing()
-      fetch(API_URL, {
+      fetch(`/api/plans/${activePlanId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: serialized,
@@ -76,5 +73,5 @@ export function usePlanSync() {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current)
     }
-  }, [plan, setSyncing, setSynced, setSyncError])
+  }, [activePlanId, activePlan, setSyncing, setSynced, setSyncError, setUnauthenticated])
 }
