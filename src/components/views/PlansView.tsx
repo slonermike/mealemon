@@ -1,7 +1,10 @@
 import { useNavigate } from '@tanstack/react-router'
 import { usePlansStore } from '@/store/plansSlice'
 import { useAuthStore } from '@/store/authSlice'
-import type { Plan, PlanSummary } from '@/lib/schema'
+import type { Plan, PlanStatus, PlanSummary } from '@/lib/schema'
+import { TabHeader } from '@/components/ui/TabHeader'
+import { BasketIcon, CheckIcon, ChevronIcon, PencilIcon, PlusIcon } from '@/components/ui/icons'
+import { badgeBase, color, font, sectionLabelStyle, tab } from '@/theme'
 
 export function PlansView() {
   const planIndex = usePlansStore((s) => s.planIndex)
@@ -31,147 +34,256 @@ export function PlansView() {
     void navigate({ to: '/plans/$planId', params: { planId: summary.id } })
   }
 
-  return (
-    <div style={containerStyle}>
-      <div style={headerRowStyle}>
-        <h2 style={headingStyle}>{'Plans'}</h2>
-        <button style={newButtonStyle} onClick={handleNewPlan}>
-          {'+ New Plan'}
-        </button>
-      </div>
+  const shopping = active.filter((p) => p.status === 'shopping')
+  const planning = active.filter((p) => p.status !== 'shopping')
 
-      {!indexLoaded ? (
-        <p style={emptyStyle}>{'Loading…'}</p>
-      ) : planIndex.length === 0 ? (
-        <p style={emptyStyle}>{'No plans yet. Create one to get started.'}</p>
-      ) : (
-        <>
-          {active.length > 0 && (
-            <section style={sectionStyle}>
-              <div style={sectionLabelStyle}>{'Active'}</div>
-              {active.map((p) => (
-                <PlanRow key={p.id} summary={p} onOpen={() => handleOpen(p)} />
-              ))}
-            </section>
-          )}
-          {done.length > 0 && (
-            <section style={{ ...sectionStyle, marginTop: 24 }}>
-              <div style={sectionLabelStyle}>{'Done'}</div>
-              {done.map((p) => (
-                <PlanRow key={p.id} summary={p} onOpen={() => handleOpen(p)} dimmed={true} />
-              ))}
-            </section>
-          )}
-        </>
-      )}
-    </div>
+  return (
+    <>
+      <TabHeader
+        tab={'plans'}
+        eyebrow={'Meal plans'}
+        title={'Plans'}
+        action={
+          <button style={newButtonStyle} onClick={handleNewPlan}>
+            <PlusIcon size={18} />
+            {'New plan'}
+          </button>
+        }
+      />
+      <main style={containerStyle}>
+        {!indexLoaded ? (
+          <p style={emptyStyle}>{'Loading…'}</p>
+        ) : planIndex.length === 0 ? (
+          <p style={emptyStyle}>{'No plans yet. Create one to get started.'}</p>
+        ) : (
+          <>
+            {active.length > 0 && (
+              <section style={sectionStyle}>
+                <h2 style={sectionLabelStyle_(tab.plans.accent)}>{'In progress'}</h2>
+                {shopping.map((p) => (
+                  <PlanRow key={p.id} summary={p} onOpen={() => handleOpen(p)} featured={true} />
+                ))}
+                {planning.map((p) => (
+                  <PlanRow key={p.id} summary={p} onOpen={() => handleOpen(p)} />
+                ))}
+              </section>
+            )}
+            {done.length > 0 && (
+              <section style={{ ...sectionStyle, marginTop: 24 }}>
+                <h2 style={sectionLabelStyle_(color.muted)}>{'Done'}</h2>
+                <ul style={doneListStyle}>
+                  {done.map((p, i) => (
+                    <li key={p.id} style={i === 0 ? undefined : doneItemStyle}>
+                      <PlanRow summary={p} onOpen={() => handleOpen(p)} compact={true} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
+      </main>
+    </>
   )
 }
 
 function PlanRow({
   summary,
   onOpen,
-  dimmed,
+  featured,
+  compact,
 }: {
   summary: PlanSummary
   onOpen: () => void
-  dimmed?: boolean
+  featured?: boolean
+  compact?: boolean
 }) {
   const date = new Date(summary.created_at).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
+  const recipes = `${summary.recipe_count} ${summary.recipe_count === 1 ? 'recipe' : 'recipes'}`
+
+  const style = compact ? compactRowStyle : featured ? featuredRowStyle : rowStyle
 
   return (
-    <button style={{ ...rowStyle, opacity: dimmed ? 0.55 : 1 }} onClick={onOpen}>
-      <div style={rowMainStyle}>
-        <span style={rowLabelStyle}>{summary.label}</span>
+    <button style={style} onClick={onOpen}>
+      <span style={rowMainStyle}>
+        <span style={featured ? featuredLabelStyle : compact ? compactLabelStyle : rowLabelStyle}>
+          {summary.label}
+        </span>
         <span style={rowMetaStyle}>
-          {summary.recipe_count} {summary.recipe_count === 1 ? 'recipe' : 'recipes'}
+          {recipes}
           {' · '}
           {date}
         </span>
-      </div>
-      <span style={statusBadgeStyle(summary.status)}>{STATUS_LABEL[summary.status]}</span>
+        {featured && (
+          <span style={continueStyle}>
+            {'Continue shopping'}
+            <ChevronIcon size={18} />
+          </span>
+        )}
+      </span>
+      <StatusBadge status={summary.status} />
     </button>
   )
 }
 
-const STATUS_LABEL: Record<string, string> = {
+const STATUS_LABEL: Record<PlanStatus, string> = {
   planning: 'Planning',
   shopping: 'Shopping',
   done: 'Done',
 }
 
-function statusBadgeStyle(status: string): React.CSSProperties {
-  const colors: Record<string, { bg: string; color: string }> = {
-    planning: { bg: '#dbeafe', color: '#1e40af' },
-    shopping: { bg: '#d1fae5', color: '#065f46' },
-    done: { bg: '#f3f4f6', color: '#6b7280' },
+// Every status has an icon, a word and a distinct fill/outline — never color alone.
+function StatusBadge({ status }: { status: PlanStatus }) {
+  const label = STATUS_LABEL[status]
+  if (status === 'planning') {
+    return (
+      <span style={{ ...badgeBase, ...planningBadgeStyle }}>
+        <PencilIcon size={14} />
+        {label}
+      </span>
+    )
   }
-  const c = colors[status] ?? colors.planning
-  return {
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '2px 8px',
-    borderRadius: 10,
-    background: c.bg,
-    color: c.color,
-    whiteSpace: 'nowrap',
+  if (status === 'shopping') {
+    return (
+      <span style={{ ...badgeBase, ...shoppingBadgeStyle }}>
+        <BasketIcon size={14} />
+        {label}
+      </span>
+    )
   }
+  return (
+    <span style={{ ...badgeBase, ...doneBadgeStyle }}>
+      <CheckIcon size={14} />
+      {label}
+    </span>
+  )
 }
 
-const containerStyle: React.CSSProperties = { padding: '16px 16px 0' }
-
-const headerRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: 20,
+function sectionLabelStyle_(c: string): React.CSSProperties {
+  return { ...sectionLabelStyle, color: c }
 }
 
-const headingStyle: React.CSSProperties = { fontSize: 20, fontWeight: 700, margin: 0 }
+const planningBadgeStyle: React.CSSProperties = {
+  borderRadius: 999,
+  background: color.surface,
+  border: `1.5px solid ${tab.plans.accent}`,
+  padding: '2px 10px 2px 8px',
+  color: tab.plans.accent,
+  whiteSpace: 'nowrap',
+}
+
+const shoppingBadgeStyle: React.CSSProperties = {
+  borderRadius: 999,
+  background: tab.shopping.accent,
+  color: '#FFFFFF',
+  whiteSpace: 'nowrap',
+}
+
+const doneBadgeStyle: React.CSSProperties = {
+  color: color.muted,
+  whiteSpace: 'nowrap',
+}
+
+const containerStyle: React.CSSProperties = {
+  maxWidth: 480,
+  margin: '0 auto',
+  padding: '20px 16px 32px',
+}
 
 const newButtonStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 600,
-  padding: '6px 14px',
-  borderRadius: 8,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  minHeight: 44,
+  padding: '0 16px 0 12px',
+  borderRadius: 22,
   border: 'none',
-  background: '#2563eb',
-  color: '#fff',
+  background: tab.plans.accent,
+  color: '#FFFFFF',
+  fontSize: 15,
+  fontWeight: 600,
   cursor: 'pointer',
 }
 
-const emptyStyle: React.CSSProperties = { color: '#6b7280', fontSize: 14 }
+const emptyStyle: React.CSSProperties = { color: color.muted, fontSize: 16 }
 
-const sectionStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 }
+const sectionStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 12 }
 
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: '#6b7280',
-  marginBottom: 4,
+const rowBase: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  width: '100%',
+  minHeight: 44,
+  boxSizing: 'border-box',
+  cursor: 'pointer',
+  textAlign: 'left',
+  color: color.ink,
+  fontFamily: 'inherit',
 }
 
 const rowStyle: React.CSSProperties = {
-  display: 'flex',
+  ...rowBase,
   alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '12px 14px',
-  borderRadius: 10,
-  border: '1px solid #e5e7eb',
-  background: '#fff',
-  cursor: 'pointer',
-  width: '100%',
-  textAlign: 'left',
+  padding: '14px 16px',
+  borderRadius: 16,
+  border: `1px solid ${color.line}`,
+  background: color.surface,
 }
 
-const rowMainStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2 }
+const featuredRowStyle: React.CSSProperties = {
+  ...rowBase,
+  padding: 18,
+  borderRadius: 18,
+  border: `2px solid ${tab.plans.accent}`,
+  background: color.surface,
+}
 
-const rowLabelStyle: React.CSSProperties = { fontSize: 15, fontWeight: 500, color: '#111827' }
+const compactRowStyle: React.CSSProperties = {
+  ...rowBase,
+  alignItems: 'center',
+  padding: '12px 16px',
+  border: 'none',
+  background: 'none',
+}
 
-const rowMetaStyle: React.CSSProperties = { fontSize: 12, color: '#9ca3af' }
+const doneListStyle: React.CSSProperties = {
+  listStyle: 'none',
+  margin: 0,
+  padding: 0,
+  background: color.surface,
+  border: `1px solid ${color.line}`,
+  borderRadius: 16,
+  overflow: 'hidden',
+}
+
+const doneItemStyle: React.CSSProperties = { borderTop: `1px solid ${color.lineSoft}` }
+
+const rowMainStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 }
+
+const rowLabelStyle: React.CSSProperties = { fontSize: 17, fontWeight: 600 }
+
+const featuredLabelStyle: React.CSSProperties = {
+  fontFamily: font.display,
+  fontSize: 22,
+  fontWeight: 600,
+}
+
+const compactLabelStyle: React.CSSProperties = { fontSize: 16, fontWeight: 500 }
+
+const rowMetaStyle: React.CSSProperties = { fontSize: 14, color: color.muted }
+
+const continueStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  marginTop: 10,
+  fontSize: 15,
+  fontWeight: 600,
+  color: tab.plans.accent,
+}

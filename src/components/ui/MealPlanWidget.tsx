@@ -7,6 +7,8 @@ import {
   selectRecipeModes,
 } from '@/store/plansSlice'
 import { useRecipeStore, selectRecipeAllergenTags } from '@/store/recipeSlice'
+import { AlertIcon, PlusIcon } from '@/components/ui/icons'
+import { color, status, tab } from '@/theme'
 import { ModeToggleList } from './ModeToggleList'
 import { ServingsStepper } from './ServingsStepper'
 
@@ -50,6 +52,7 @@ export function MealPlanWidget({ recipeId }: Props) {
   if (!isSelected) {
     return (
       <button type={'button'} onClick={() => toggleRecipe(recipeId)} style={addButtonStyle}>
+        <PlusIcon size={18} />
         {'Add to plan'}
       </button>
     )
@@ -59,14 +62,19 @@ export function MealPlanWidget({ recipeId }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {allowedAllergens.length > 0 && (
         <div style={allergenWarningStyle}>
-          <span style={{ fontWeight: 600 }}>{'Contains: '}</span>
-          {allowedAllergens.join(', ')}
+          <AlertIcon size={16} />
+          <span>
+            <span style={{ fontWeight: 600 }}>{'Contains: '}</span>
+            {allowedAllergens.join(', ')}
+          </span>
         </div>
       )}
       <ServingsStepper servings={servings!} onChange={(s) => setServings(recipeId, s)} />
       {recipeTags.length > 0 && (
         <div>
-          <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{'Exclusions'}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: color.muted, marginBottom: 8 }}>
+            {'Exclusions'}
+          </div>
           <ModeToggleList
             allTags={recipeTags}
             activeTags={activeModes}
@@ -85,39 +93,47 @@ export function MealPlanWidget({ recipeId }: Props) {
 }
 
 const noPlanStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: '#6b7280',
+  fontSize: 14,
+  color: color.muted,
   margin: 0,
 }
 
 const addButtonStyle: React.CSSProperties = {
-  padding: '10px 20px',
-  borderRadius: 8,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  minHeight: 48,
+  borderRadius: 12,
   border: 'none',
-  background: '#2563eb',
-  color: '#fff',
-  fontSize: 15,
+  background: tab.recipes.accent,
+  color: '#FFFFFF',
+  fontSize: 16,
   fontWeight: 600,
   cursor: 'pointer',
   width: '100%',
 }
 
 const removeButtonStyle: React.CSSProperties = {
-  padding: '8px 16px',
-  borderRadius: 8,
-  border: '1px solid #f87171',
-  background: '#fff',
-  color: '#dc2626',
-  fontSize: 14,
+  minHeight: 44,
+  padding: '0 16px',
+  borderRadius: 12,
+  border: `1px solid ${tab.recipes.edge}`,
+  background: color.surface,
+  color: color.ink,
+  fontSize: 15,
+  fontWeight: 600,
   cursor: 'pointer',
   alignSelf: 'flex-start',
 }
 
 const allergenWarningStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: 6,
-  background: '#fef3c7',
-  border: '1px solid #fcd34d',
-  fontSize: 13,
-  color: '#92400e',
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 8,
+  padding: '10px 12px',
+  borderRadius: 10,
+  background: status.warn.bg,
+  fontSize: 14,
+  color: status.warn.fg,
 }
