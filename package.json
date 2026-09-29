@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.1",
     "@radix-ui/react-checkbox": "^1.3.11",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-select": "^2.3.7",
@@ -21,6 +22,7 @@
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "fraction.js": "^5.3.4",
+    "hono": "^4.13.10",
     "idb": "^8.0.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
