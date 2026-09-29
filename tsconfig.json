@@ -20,6 +20,5 @@
     }
   },
   "include": ["src"],
-  "exclude": ["src/lib/apiAuth.ts", "src/lib/planBlob.ts"],
   "references": [{"path": "./tsconfig.node.json"}, {"path": "./tsconfig.api.json"}]
 }

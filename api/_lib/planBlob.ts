@@ -1,5 +1,5 @@
 import { put, get, del } from '@vercel/blob'
-import type { Plan, PlanIndex } from './schema'
+import type { Plan, PlanIndex } from '../../src/lib/schema'
 
 const CURRENT_VERSION = 1
 

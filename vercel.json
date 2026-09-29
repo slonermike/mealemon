@@ -4,10 +4,5 @@
       "main": true
     }
   },
-  "buildCommand": "sh scripts/vercel-build.sh",
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "src/lib/**"
-    }
-  }
+  "buildCommand": "sh scripts/vercel-build.sh"
 }
