@@ -25,7 +25,6 @@ interface PlansState {
   toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
   resetRecipeModes: (recipe_id: string) => void
   toggleCheckoff: (key: CheckoffKey) => void
-  markAllShopped: () => void
   setPlanStatus: (id: string, status: Plan['status']) => void
   setPlanLabel: (id: string, label: string) => void
 }
@@ -143,13 +142,6 @@ export const usePlansStore = create<PlansState>()((set) => ({
       }),
     ),
 
-  markAllShopped: () =>
-    set((s) =>
-      updateActive(s, (p) => ({
-        selected: p.selected.map((sel) => ({ ...sel, shopped: true })),
-      })),
-    ),
-
   setPlanStatus: (id, status) =>
     set((s) => {
       const plan = s.plans[id]
@@ -189,10 +181,3 @@ export const selectIsCheckedOff = (key: CheckoffKey) => (s: PlansState) =>
   selectActivePlan(s)?.checked_off.some(
     (k: CheckoffKey) => k.ingredient_ref === key.ingredient_ref && k.recipe_id === key.recipe_id,
   ) ?? false
-
-export const selectIsShopped = (recipe_id: string) => (s: PlansState) =>
-  selectActivePlan(s)?.selected.find((sel: PlanSelection) => sel.recipe_id === recipe_id)
-    ?.shopped ?? false
-
-export const selectHasUnshopped = (s: PlansState) =>
-  selectActivePlan(s)?.selected.some((sel) => !sel.shopped) ?? false

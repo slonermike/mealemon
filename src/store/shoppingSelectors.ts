@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { buildShoppingList } from '@/lib/pipeline'
 import type { ShoppingItem } from '@/lib/schema'
@@ -25,14 +25,12 @@ export function useResolvedShoppingList(): ShoppingGroup[] {
   const selected = usePlansStore(useShallow((s) => selectActivePlan(s)?.selected ?? []))
   const activeModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
 
-  const exclusionTags = useRecipeStore(useCallback((_s) => activeModes, [activeModes]))
-
   const recipes = useRecipeStore((s) => s.recipes)
   const registry = useRecipeStore((s) => s.registry)
 
   return useMemo(() => {
     const unshopped = selected.filter((s) => !s.shopped)
-    const items = buildShoppingList({ selected: unshopped }, recipes, registry, exclusionTags)
+    const items = buildShoppingList({ selected: unshopped }, recipes, registry, activeModes)
 
     const byCategory = new Map<string, ShoppingItem[]>()
     for (const item of items) {
@@ -55,5 +53,5 @@ export function useResolvedShoppingList(): ShoppingGroup[] {
     }
 
     return groups
-  }, [selected, recipes, registry, exclusionTags])
+  }, [selected, recipes, registry, activeModes])
 }
