@@ -3,6 +3,7 @@ import { RootLayout } from '@/components/RootLayout'
 import { RecipeList } from '@/components/views/RecipeList'
 import { RecipeDetail } from '@/components/views/RecipeDetail'
 import { ShoppingList } from '@/components/views/ShoppingList'
+import { MealsView } from '@/components/views/MealsView'
 import { LogoutPage } from '@/components/views/LogoutPage'
 
 export const rootRoute = createRootRoute({ component: RootLayout })
@@ -25,6 +26,12 @@ export const shoppingRoute = createRoute({
   component: ShoppingList,
 })
 
+export const mealsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/meals',
+  component: MealsView,
+})
+
 export const logoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/logout',
@@ -35,6 +42,7 @@ const routeTree = rootRoute.addChildren([
   recipesRoute,
   recipeDetailRoute,
   shoppingRoute,
+  mealsRoute,
   logoutRoute,
 ])
 

@@ -3,18 +3,14 @@ import { useShallow } from 'zustand/react/shallow'
 import { usePlanStore } from '@/store/planSlice'
 import { useSessionStore } from '@/store/sessionSlice'
 import { useAuthStore } from '@/store/authSlice'
-import type { Plan } from '@/lib/schema'
+import type { ActivePlan } from '@/lib/schema'
 
 const DEBOUNCE_MS = 1000
-
-function planApiUrl(weekId: string) {
-  return `/api/plans/${weekId}`
-}
+const API_URL = '/api/plans/active'
 
 export function usePlanSync() {
   const plan = usePlanStore(
     useShallow((s) => ({
-      week_of: s.week_of,
       selected: s.selected,
       active_modes: s.active_modes,
       checked_off: s.checked_off,
@@ -33,16 +29,14 @@ export function usePlanSync() {
     if (loadedRef.current) return
     loadedRef.current = true
 
-    const weekId = plan.week_of
-    fetch(planApiUrl(weekId))
+    fetch(API_URL)
       .then((res) => {
         if (res.status === 401) {
           setUnauthenticated()
           return null
         }
-        if (res.status === 404) return null
         if (!res.ok) throw new Error(`${res.status}`)
-        return res.json() as Promise<Plan>
+        return res.json() as Promise<ActivePlan>
       })
       .then((remote) => {
         if (remote) {
@@ -51,7 +45,7 @@ export function usePlanSync() {
         }
       })
       .catch((err) => setSyncError(err))
-  }, [loadPlan, setSyncError, setUnauthenticated]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadPlan, setSyncError, setUnauthenticated])
 
   // Debounced save on any plan change
   useEffect(() => {
@@ -62,7 +56,7 @@ export function usePlanSync() {
 
     debounceTimer.current = setTimeout(() => {
       setSyncing()
-      fetch(planApiUrl(plan.week_of), {
+      fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: serialized,

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import type { CheckoffKey, Plan, PlanSelection } from '@/lib/schema'
+import type { ActivePlan, CheckoffKey, PlanSelection } from '@/lib/schema'
 
-interface PlanState extends Plan {
+interface PlanState extends Omit<ActivePlan, 'schema_version'> {
   default_servings: number
   setServings: (recipe_id: string, servings: number) => void
   setDefaultServings: (servings: number) => void
@@ -10,17 +10,12 @@ interface PlanState extends Plan {
   toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
   resetRecipeModes: (recipe_id: string) => void
   toggleCheckoff: (key: CheckoffKey) => void
-  loadPlan: (plan: Plan) => void
-}
-
-const currentWeekOf = () => {
-  const d = new Date()
-  d.setDate(d.getDate() - d.getDay() + 1) // Monday
-  return d.toISOString().slice(0, 10)
+  markAllShopped: () => void
+  completeMeal: (recipe_id: string) => void
+  loadPlan: (plan: ActivePlan) => void
 }
 
 export const usePlanStore = create<PlanState>()((set, get) => ({
-  week_of: currentWeekOf(),
   selected: [],
   active_modes: [],
   checked_off: [],
@@ -32,7 +27,7 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
     set({
       selected: exists
         ? selected.filter((s) => s.recipe_id !== recipe_id)
-        : [...selected, { recipe_id, servings: default_servings }],
+        : [...selected, { recipe_id, servings: default_servings, shopped: false }],
     })
   },
 
@@ -80,7 +75,25 @@ export const usePlanStore = create<PlanState>()((set, get) => ({
     set({ checked_off: exists ? checked_off.filter((k) => !match(k)) : [...checked_off, key] })
   },
 
-  loadPlan: (plan) => set(plan),
+  markAllShopped: () => {
+    set((s) => ({
+      selected: s.selected.map((sel) => ({ ...sel, shopped: true })),
+    }))
+  },
+
+  completeMeal: (recipe_id) => {
+    set((s) => ({
+      selected: s.selected.filter((sel) => sel.recipe_id !== recipe_id),
+      checked_off: s.checked_off.filter((k) => k.recipe_id !== recipe_id),
+    }))
+  },
+
+  loadPlan: (plan) =>
+    set({
+      selected: plan.selected,
+      active_modes: plan.active_modes,
+      checked_off: plan.checked_off,
+    }),
 }))
 
 export const selectIsRecipeSelected = (recipe_id: string) => (s: PlanState) =>
@@ -96,3 +109,8 @@ export const selectIsCheckedOff = (key: CheckoffKey) => (s: PlanState) =>
   s.checked_off.some(
     (k: CheckoffKey) => k.ingredient_ref === key.ingredient_ref && k.recipe_id === key.recipe_id,
   )
+
+export const selectIsShopped = (recipe_id: string) => (s: PlanState) =>
+  s.selected.find((sel: PlanSelection) => sel.recipe_id === recipe_id)?.shopped ?? false
+
+export const selectHasUnshopped = (s: PlanState) => s.selected.some((sel) => !sel.shopped)

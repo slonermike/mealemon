@@ -37,7 +37,8 @@ export function useResolvedShoppingList(): ShoppingGroup[] {
   const registry = useRecipeStore((s) => s.registry)
 
   return useMemo(() => {
-    const items = buildShoppingList({ selected }, recipes, registry, exclusionTags)
+    const unshopped = selected.filter((s) => !s.shopped)
+    const items = buildShoppingList({ selected: unshopped }, recipes, registry, exclusionTags)
 
     const byCategory = new Map<string, ShoppingItem[]>()
     for (const item of items) {

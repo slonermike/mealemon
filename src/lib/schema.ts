@@ -47,6 +47,7 @@ export interface ExclusionMode {
 export interface PlanSelection {
   recipe_id: string
   servings: number
+  shopped?: boolean
   mode_overrides?: string[]
 }
 
@@ -55,11 +56,27 @@ export interface CheckoffKey {
   recipe_id?: string
 }
 
-export interface Plan {
-  week_of: string
+export interface ActivePlan {
+  schema_version: number
   selected: PlanSelection[]
   active_modes: string[]
   checked_off: CheckoffKey[]
+}
+
+export interface MealRecord {
+  id: string
+  recipe_id: string
+  servings: number
+  mode_overrides?: string[]
+  active_modes: string[]
+  checked_off: CheckoffKey[]
+  shopped: boolean
+  completed_at: string
+}
+
+export interface MealHistory {
+  schema_version: number
+  meals: MealRecord[]
 }
 
 export interface ResolvedCandidate {

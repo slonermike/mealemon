@@ -7,6 +7,7 @@ function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const atRecipes = pathname === '/' || pathname.startsWith('/recipes/')
   const atShopping = pathname === '/shopping'
+  const atMeals = pathname === '/meals'
 
   return (
     <nav style={navStyle}>
@@ -15,6 +16,9 @@ function BottomNav() {
       </Link>
       <Link to={'/shopping'} style={tabStyle(atShopping)}>
         {'Shopping'}
+      </Link>
+      <Link to={'/meals'} style={tabStyle(atMeals)}>
+        {'Meals'}
       </Link>
     </nav>
   )
