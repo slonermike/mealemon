@@ -4,5 +4,6 @@
       "main": true
     }
   },
-  "buildCommand": "sh scripts/vercel-build.sh"
+  "buildCommand": "sh scripts/vercel-build.sh",
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/index" }]
 }

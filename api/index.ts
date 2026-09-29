@@ -1,12 +1,8 @@
 import * as crypto from 'crypto'
-import { Hono } from 'hono'
-import { handle } from 'hono/vercel'
-import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import express from 'express'
 import { put, get, del } from '@vercel/blob'
 import bcrypt from 'bcryptjs'
 import type { Plan, PlanIndex } from '../src/lib/schema'
-
-export const config = { runtime: 'nodejs' }
 
 // --- auth helpers ---
 
@@ -41,6 +37,13 @@ function isValidToken(token: string | undefined) {
     return false
   }
 }
+function getToken(req: express.Request): string | undefined {
+  return (req.headers.cookie ?? '')
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${COOKIE_NAME}=`))
+    ?.slice(COOKIE_NAME.length + 1)
+}
 
 // --- blob helpers ---
 
@@ -53,7 +56,6 @@ async function readBlob<T>(path: string): Promise<T | null> {
   for await (const chunk of blob.stream) chunks.push(chunk as Uint8Array)
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T
 }
-
 async function writeBlob(path: string, data: unknown) {
   await put(path, JSON.stringify(data), {
     access: 'private',
@@ -62,7 +64,6 @@ async function writeBlob(path: string, data: unknown) {
     allowOverwrite: true,
   })
 }
-
 async function readPlan(id: string): Promise<Plan | null> {
   const raw = await readBlob<Record<string, unknown>>(`plans/${id}.json`)
   return raw ? (raw as unknown as Plan) : null
@@ -89,56 +90,61 @@ function defaultPlanLabel() {
 
 // --- app ---
 
-const app = new Hono().basePath('/api')
+const app = express()
+app.use(express.json())
 
-// auth middleware for protected routes
-const authMiddleware = async (
-  c: Parameters<Parameters<typeof app.use>[1]>[0],
-  next: () => Promise<void>,
-) => {
-  const token = getCookie(c, COOKIE_NAME)
-  if (!isValidToken(token)) return c.json({ error: 'Unauthorized' }, 401)
-  await next()
+// auth middleware
+function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!isValidToken(getToken(req))) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+  next()
 }
 
 // auth routes
-app.post('/auth/login', async (c) => {
-  const { password } = await c.req.json<{ password?: string }>()
-  if (!password) return c.json({ error: 'Missing password' }, 400)
+app.post('/api/auth/login', async (req, res) => {
+  const { password } = req.body as { password?: string }
+  if (!password) {
+    res.status(400).json({ error: 'Missing password' })
+    return
+  }
   const hash = process.env.APP_PASSWORD_HASH
-  if (!hash) return c.json({ error: 'Server misconfigured' }, 500)
+  if (!hash) {
+    res.status(500).json({ error: 'Server misconfigured' })
+    return
+  }
   const valid = await bcrypt.compare(password, hash)
-  if (!valid) return c.json({ error: 'Incorrect password' }, 401)
-  setCookie(c, COOKIE_NAME, makeToken(), {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'Strict',
-    maxAge: COOKIE_MAX_AGE,
-    path: '/',
-  })
-  return c.json({ ok: true })
+  if (!valid) {
+    res.status(401).json({ error: 'Incorrect password' })
+    return
+  }
+  res.setHeader(
+    'Set-Cookie',
+    `${COOKIE_NAME}=${makeToken()}; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}; Path=/`,
+  )
+  res.json({ ok: true })
 })
 
-app.post('/auth/logout', (c) => {
-  deleteCookie(c, COOKIE_NAME, { path: '/' })
-  return c.json({ ok: true })
+app.post('/api/auth/logout', (_req, res) => {
+  res.setHeader(
+    'Set-Cookie',
+    `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/`,
+  )
+  res.json({ ok: true })
 })
 
-app.get('/auth/check', (c) => {
-  const token = getCookie(c, COOKIE_NAME)
-  if (isValidToken(token)) return c.json({ ok: true })
-  return c.json({ error: 'Unauthorized' }, 401)
+app.get('/api/auth/check', (req, res) => {
+  if (isValidToken(getToken(req))) res.json({ ok: true })
+  else res.status(401).json({ error: 'Unauthorized' })
 })
 
-// plans routes (all protected)
-app.use('/plans/*', authMiddleware)
-app.use('/plans', authMiddleware)
-
-app.get('/plans', async (c) => {
-  return c.json(await readPlanIndex())
+// plans routes
+app.get('/api/plans', requireAuth, async (_req, res) => {
+  res.json(await readPlanIndex())
 })
 
-app.post('/plans', async (c) => {
+app.post('/api/plans', requireAuth, async (_req, res) => {
   const now = new Date().toISOString()
   const plan: Plan = {
     id: crypto.randomUUID(),
@@ -159,20 +165,26 @@ app.post('/plans', async (c) => {
     recipe_count: 0,
   })
   await Promise.all([writePlan(plan), writePlanIndex(index)])
-  return c.json(plan, 201)
+  res.status(201).json(plan)
 })
 
-app.get('/plans/:id', async (c) => {
-  const plan = await readPlan(c.req.param('id'))
-  if (!plan) return c.json({ error: 'Plan not found' }, 404)
-  return c.json(plan)
+app.get('/api/plans/:id', requireAuth, async (req, res) => {
+  const plan = await readPlan(req.params.id)
+  if (!plan) {
+    res.status(404).json({ error: 'Plan not found' })
+    return
+  }
+  res.json(plan)
 })
 
-app.post('/plans/:id', async (c) => {
-  const id = c.req.param('id')
-  const body = await c.req.json<Partial<Plan>>()
+app.post('/api/plans/:id', requireAuth, async (req, res) => {
+  const { id } = req.params
+  const body = req.body as Partial<Plan>
   const existing = await readPlan(id)
-  if (!existing) return c.json({ error: 'Plan not found' }, 404)
+  if (!existing) {
+    res.status(404).json({ error: 'Plan not found' })
+    return
+  }
   const updated: Plan = {
     ...existing,
     selected: Array.isArray(body.selected) ? body.selected : existing.selected,
@@ -192,35 +204,40 @@ app.post('/plans/:id', async (c) => {
     }
   }
   await Promise.all([writePlan(updated), writePlanIndex(index)])
-  return c.json({ ok: true })
+  res.json({ ok: true })
 })
 
-app.delete('/plans/:id', async (c) => {
-  const id = c.req.param('id')
+app.delete('/api/plans/:id', requireAuth, async (req, res) => {
+  const { id } = req.params
   const index = await readPlanIndex()
   index.plans = index.plans.filter((p) => p.id !== id)
   await Promise.all([deletePlanBlob(id), writePlanIndex(index)])
-  return c.json({ ok: true })
+  res.json({ ok: true })
 })
 
-app.patch('/plans/:id/checkoff', async (c) => {
-  const id = c.req.param('id')
-  const { ingredient_ref, recipe_id, checked } = await c.req.json<{
+app.patch('/api/plans/:id/checkoff', requireAuth, async (req, res) => {
+  const { id } = req.params
+  const { ingredient_ref, recipe_id, checked } = req.body as {
     ingredient_ref: string
     recipe_id: string
     checked: boolean
-  }>()
-  if (!ingredient_ref || typeof checked !== 'boolean')
-    return c.json({ error: 'Missing ingredient_ref or checked' }, 400)
+  }
+  if (!ingredient_ref || typeof checked !== 'boolean') {
+    res.status(400).json({ error: 'Missing ingredient_ref or checked' })
+    return
+  }
   const plan = await readPlan(id)
-  if (!plan) return c.json({ error: 'Plan not found' }, 404)
+  if (!plan) {
+    res.status(404).json({ error: 'Plan not found' })
+    return
+  }
   const match = (k: { ingredient_ref: string; recipe_id: string }) =>
     k.ingredient_ref === ingredient_ref && k.recipe_id === recipe_id
   const already = plan.checked_off.some(match)
   if (checked && !already) plan.checked_off = [...plan.checked_off, { ingredient_ref, recipe_id }]
   else if (!checked && already) plan.checked_off = plan.checked_off.filter((k) => !match(k))
   await writePlan(plan)
-  return c.json({ ok: true, checked_off: plan.checked_off })
+  res.json({ ok: true, checked_off: plan.checked_off })
 })
 
-export default handle(app)
+export default app
