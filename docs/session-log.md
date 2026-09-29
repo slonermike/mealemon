@@ -4,6 +4,35 @@ Brief overviews of development sessions, newest first.
 
 ---
 
+## 2026-09-28/29 — Plans lifecycle, Express API, codebase cleanup
+
+### What was built
+
+- **Named meal plans** with `planning` → `shopping` → `done` lifecycle, replacing the week-keyed single-plan model
+- **Plans list view** (`PlansView.tsx`) with Active / Done sections and "New Plan" button
+- **Plan detail view** (`PlanDetail.tsx`) reusing `RecipeListItem` from `RecipeList.tsx` — expandable rows with `MealPlanWidget` for in-place modifications
+- **Shopping flow** redesigned: list is dimmed/disabled in `planning` status; "Start Shopping" button lives on the shopping list, not the plan detail
+- **Express API** at `api/index.ts` replacing per-file Vercel Serverless Functions — solved persistent `ERR_MODULE_NOT_FOUND` errors caused by Vercel's per-file bundle isolation
+
+### Key bugs fixed
+
+- `ERR_MODULE_NOT_FOUND` on all `/api/plans/*` endpoints — Vercel bundles each `api/` file in isolation; any import outside that file fails at runtime. Tried `api/_lib/`, `src/lib/` with `includeFiles`, both failed. Final fix: single Express entry point sidesteps the problem entirely.
+- `POST /api/plans/:id` returned "Invalid plan body" when sending partial updates like `{ status: 'shopping' }` — handler required `body.selected` to be an array. Fixed by relaxing validation to `!body` and merging with existing plan data.
+- `Maximum update depth exceeded` infinite render loop — `usePlansStore((s) => s.activePlan?.active_modes ?? [])` creates a new array reference every render. Fixed with `useShallow` across all selectors returning arrays/objects.
+
+### Deployment challenges
+
+- `hono/vercel` adapter caused `vercel dev` to hang for 30s (`HeadersTimeoutError` from undici on blob calls in local dev). Switched to Express.
+- `vercel.json` `includeFiles` did not work with a custom `buildCommand` — files outside `api/` were never present at `/var/task/` regardless of configuration.
+- Added `vercel.json` rewrite `{ "source": "/api/(.*)", "destination": "/api/index" }` to route all API traffic to the Express handler in both local dev and production.
+
+### Codebase cleanup
+
+- Removed dead code: `navSlice.ts`, `markAllShopped`, `selectIsShopped`, `selectHasUnshopped`
+- Removed spurious `useRecipeStore(useCallback(...))` wrapper in `shoppingSelectors.ts` that was passing `activeModes` through an unnecessary hook call
+
+---
+
 ## 2026-09-16 — Polish and deploy fixes
 
 - Added Liz Lemon hero image (circle crop) to login screen

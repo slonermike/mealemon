@@ -3,6 +3,7 @@
 ## 1. Background & Motivation
 
 Mealime is shutting down (October 21, 2026). Suggested replacement apps don't meet the household's needs:
+
 - Meal scalability (adjusting servings)
 - A clean shopping-list interface
 - Automated ingredient substitutions / exclusions for allergies
@@ -15,11 +16,11 @@ No evaluated third-party product (NumYum, Samsung Food, Peel, Swoodie, Eat This 
 
 This is the central architectural decision and shapes everything below.
 
-| | App | Content |
-|---|---|---|
-| **Visibility** | Public (or at least shareable) | Private |
-| **Contents** | All code: schema types, pipeline logic, Vite/React PWA, shopping-list infra | Real recipe JSON files conforming to the app's schema |
-| **Contains real recipe content?** | No | Yes |
+|                                   | App                                                                         | Content                                               |
+| --------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Visibility**                    | Public (or at least shareable)                                              | Private                                               |
+| **Contents**                      | All code: schema types, pipeline logic, Vite/React PWA, shopping-list infra | Real recipe JSON files conforming to the app's schema |
+| **Contains real recipe content?** | No                                                                          | Yes                                                   |
 
 **Why the split matters:** recipe content hand-keyed from Mealime (or any other source) is still that source's IP even after re-typing it into your own JSON format — re-formatting doesn't change ownership. The app repo must never contain real recipe content, only the format recipes are expressed in and the code that operates on that format.
 
@@ -32,6 +33,7 @@ This is the central architectural decision and shapes everything below.
 **Engine-level philosophy:** stay generic and unopinionated about anything that varies by household — allergen taxonomy, exclusion scope (household-wide vs. per-person), and unit systems must all be configurable, not hardcoded, since other adopters' needs won't match this household's exactly.
 
 **Explicitly out of scope, at the application level:**
+
 - A large aggregated recipe database or external recipe API (e.g., Spoonacular) — evaluated and rejected as overkill for a family-only tool
 - User accounts / multi-tenant auth — sharing is handled via a shared link or simple file exchange
 - In-app recipe content editing beyond the deferred v2 image-upload feature (see §10)
@@ -66,7 +68,7 @@ Ingredients are first-class entries, shared across all recipes, separate from a 
 
 `default_allergen_tags` lets an intrinsic allergen (shrimp is always shellfish) be declared once, ever, in the registry — every recipe usage referencing that ingredient inherits the tag automatically rather than requiring per-recipe re-tagging.
 
-**Important boundary:** the registry owns *identity and intrinsic properties* (name, category, unit family, default allergen tags). It deliberately does **not** own substitution suitability — the candidate list of workable ingredients (§5.1) stays attached to a recipe's usage of an ingredient slot, not the registry entry, preserving the earlier decision that "almond flour works here, not there" is a property of the dish, not the ingredient.
+**Important boundary:** the registry owns _identity and intrinsic properties_ (name, category, unit family, default allergen tags). It deliberately does **not** own substitution suitability — the candidate list of workable ingredients (§5.1) stays attached to a recipe's usage of an ingredient slot, not the registry entry, preserving the earlier decision that "almond flour works here, not there" is a property of the dish, not the ingredient.
 
 ### 5.1 Ingredient (usage, within a recipe)
 
@@ -88,9 +90,9 @@ An ingredient "slot" in a recipe is a **priority-ordered list of workable candid
 - **Order encodes preference**, not just possibility — the first candidate is the "default" (try milk), later entries are fallbacks in the order you'd actually want them tried (almond milk before oat milk, say).
 - An ingredient with genuinely no substitute (shrimp in shrimp cocktail) is simply a **one-item candidate list** — there's no separate flag or "no alternates" case; the schema has one shape for every ingredient slot, whether it has zero, one, or several fallbacks.
 
-**Resolution algorithm:** given the current set of active exclusion tags (household-permanent and situational modes are treated identically here — both are just "currently excluded tags"), walk a slot's `candidates` in order and return the first one whose `allergen_tags` don't intersect that set. If none survive, the recipe is incompatible with the current combination of active exclusions — this replaces the earlier per-mode "hard-stop inference," and now generalizes naturally to *multiple simultaneous* active exclusions (e.g. dairy-free **and** gluten-free at once), which a mode-keyed map couldn't express without a combinatorial key for every exclusion pairing.
+**Resolution algorithm:** given the current set of active exclusion tags (household-permanent and situational modes are treated identically here — both are just "currently excluded tags"), walk a slot's `candidates` in order and return the first one whose `allergen_tags` don't intersect that set. If none survive, the recipe is incompatible with the current combination of active exclusions — this replaces the earlier per-mode "hard-stop inference," and now generalizes naturally to _multiple simultaneous_ active exclusions (e.g. dairy-free **and** gluten-free at once), which a mode-keyed map couldn't express without a combinatorial key for every exclusion pairing.
 
-This also collapses a distinction that no longer needs to exist in the resolution logic: whether an exclusion is "permanent" (gluten/shellfish/nightshades) or "situational" (dairy-free) no longer matters to *how* substitution is resolved — both are just members of the active-exclusion set. Ingestion-time curation still matters for deciding which recipes are worth including in the dataset at all, but the runtime mechanics are now one thing.
+This also collapses a distinction that no longer needs to exist in the resolution logic: whether an exclusion is "permanent" (gluten/shellfish/nightshades) or "situational" (dairy-free) no longer matters to _how_ substitution is resolved — both are just members of the active-exclusion set. Ingestion-time curation still matters for deciding which recipes are worth including in the dataset at all, but the runtime mechanics are now one thing.
 
 ### 5.2 Step
 
@@ -114,8 +116,8 @@ This also collapses a distinction that no longer needs to exist in the resolutio
   "id": "chicken-milk-skillet",
   "title": "Garlic Chicken Skillet",
   "base_servings": 4,
-  "ingredients": [ /* Ingredient[] */ ],
-  "steps": [ /* Step[] */ ]
+  "ingredients": [/* Ingredient[] */],
+  "steps": [/* Step[] */]
 }
 ```
 
@@ -138,18 +140,22 @@ Households that don't need per-person scoping (this one included) simply never p
 
 ### 5.5 Plan / Shopping State (application-level, private)
 
+Plans are named entities with a `planning` → `shopping` → `done` lifecycle. Multiple plans can exist; the UI surfaces Active and Done sections.
+
 ```json
 {
-  "week_of": "2026-09-07",
-  "selected": [
-    { "recipe_id": "chicken-milk-skillet", "servings": 6 }
-  ],
+  "id": "uuid",
+  "schema_version": 1,
+  "label": "Plan Created Sep 28, 2026",
+  "created_at": "2026-09-28T00:00:00.000Z",
+  "status": "shopping",
+  "selected": [{ "recipe_id": "chicken-milk-skillet", "servings": 6, "shopped": false }],
   "active_modes": ["dairy-free"],
-  "checked_off": ["almond milk", "garlic cloves"]
+  "checked_off": [{ "ingredient_ref": "almond-milk" }]
 }
 ```
 
-This structure is application-specific (private), not part of the engine's public contract.
+Plans are stored as private Vercel Blob files at `plans/<id>.json`. A lightweight index at `plans/index.json` holds summaries for the list view. This structure is application-specific (private), not part of the engine's public contract.
 
 ## 6. Core Logic: Shopping List Pipeline (Engine)
 
@@ -201,27 +207,30 @@ This pipeline is fully unit-testable with no UI dependency and no dependency on 
 
 Two different sync needs, handled differently:
 
-| Data | Frequency | Sync need | Approach |
-|---|---|---|---|
-| Recipe selections, servings, active mode(s) | Low (weekly) | None real-time | Exchange as a small JSON blob (email, text, AirDrop) — both devices compute the identical shopping list locally since the pipeline is a pure function over shared, locally-cached recipe data |
-| Shopping list check-off state | High (during the shopping trip) | Real-time-ish, so two shoppers don't double-buy | Single shared JSON blob per week in **Vercel Blob** (free on Hobby), fetched/written by both phones. No auth system — possession of the week's key/URL is sufficient. |
+| Data                                        | Frequency                       | Sync need                                       | Approach                                                                                                                                                                                      |
+| ------------------------------------------- | ------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recipe selections, servings, active mode(s) | Low (weekly)                    | None real-time                                  | Exchange as a small JSON blob (email, text, AirDrop) — both devices compute the identical shopping list locally since the pipeline is a pure function over shared, locally-cached recipe data |
+| Shopping list check-off state               | High (during the shopping trip) | Real-time-ish, so two shoppers don't double-buy | Single shared JSON blob per week in **Vercel Blob** (free on Hobby), fetched/written by both phones. No auth system — possession of the week's key/URL is sufficient.                         |
 
 Vercel KV/Postgres were considered and ruled out — both were deprecated in Dec 2024 in favor of Upstash (Redis) and Neon (Postgres) respectively. Upstash was considered for the live shopping-list sync but judged to be more infrastructure than needed; Blob storage is sufficient given the low-stakes, low-frequency read/write pattern.
 
-**Server framework:** the API endpoints are implemented as **Vercel Serverless Functions** (plain TypeScript files in `api/`), not a Next.js or Express server. Next.js was evaluated and rejected — it adds app-router and server-component conventions that are pure noise for a single-page tool. Express was evaluated and rejected — it requires a persistent server, whereas Vercel Functions run serverless (spin up per-request, scale to zero, free on Hobby tier) with no ops burden. The API surface is small enough (4 endpoints) that the Vercel Functions file-per-route convention is no more complex than an Express router, and deployment is zero-config. The UI is **Vite + React**, matching the patterns established in §12.
+**Server framework:** the API is implemented as a single **Express app** at `api/index.ts`, deployed as one Vercel Serverless Function. A `vercel.json` rewrite routes all `/api/*` traffic to it. Vercel's per-file-handler model was originally used but abandoned — Vercel bundles each `api/` file in isolation, making any shared import fail at runtime with `ERR_MODULE_NOT_FOUND`. A single Express entry point sidesteps this entirely. The UI is **Vite + React**, matching the patterns established in §12.
 
 ### 9.1 API Endpoints
 
-Two mutation patterns, handled differently: a full plan write (infrequent) versus single-item checkoff toggles (frequent, needs to tolerate concurrent access from two phones without heavyweight concurrency control).
+| Method   | Path                      | Purpose                                                                                                                         |
+| -------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/plans`              | Fetch the plan index (list of all plan summaries).                                                                              |
+| `POST`   | `/api/plans`              | Create a new plan. Returns the full plan object.                                                                                |
+| `GET`    | `/api/plans/:id`          | Fetch a single plan by ID.                                                                                                      |
+| `POST`   | `/api/plans/:id`          | Update a plan (partial — merges with existing). Accepts any subset of `{ selected, active_modes, checked_off, label, status }`. |
+| `DELETE` | `/api/plans/:id`          | Delete a plan and remove it from the index. Only intended for `done` plans.                                                     |
+| `PATCH`  | `/api/plans/:id/checkoff` | Toggle one shopping-list item's checked state. Body: `{ ingredient_ref, recipe_id?, checked }`.                                 |
+| `GET`    | `/api/auth/check`         | Returns 200 if the session cookie is valid, 401 otherwise.                                                                      |
+| `POST`   | `/api/auth/login`         | Validates password, sets HttpOnly session cookie.                                                                               |
+| `POST`   | `/api/auth/logout`        | Clears the session cookie.                                                                                                      |
 
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/api/plans/{weekId}` | Create/replace a week's plan: selected recipes + servings + active modes. Upserts. |
-| `GET` | `/api/plans/{weekId}` | Fetch the week's plan. The shopping list is **not stored** — it's computed fresh, server-side, by running the engine's pipeline (§6) against the stored selection/servings/modes, then merged with current check-off state. This guarantees the list is always consistent with the current pipeline logic rather than a cached snapshot that can drift if substitution rules are ever tweaked. |
-| `PATCH` | `/api/plans/{weekId}` | Update the selection (add/remove a recipe, change servings, toggle a mode) — not the shopping list directly. |
-| `PATCH` | `/api/plans/{weekId}/checkoff` | Toggle one shopping-list item's checked state. Body: `{ ingredient_ref, recipe_id?, checked }`. |
-
-**Checkoff keying:** checkoff always tracks at **occurrence granularity** — `(ingredient_ref, recipe_id)` — regardless of the ingredient's current `display_mode`, so state survives a mid-trip switch between combined and separate views without needing to un-collapse anything. In **separate** display mode, each occurrence's checkbox maps directly to one `(ingredient_ref, recipe_id)` pair. In **combined** display mode, the UI shows a single checkbox per ingredient, but toggling it omits `recipe_id` from the request, meaning "apply to every occurrence of this `ingredient_ref` in this plan" — letting one endpoint serve both display modes without a schema fork. (Earlier drafts of this endpoint keyed on `ingredient_ref` alone, reasoning that post-normalization there's only one unit per ingredient; that's still true, but doesn't account for needing to check off *individual recipe occurrences* separately, which the combine/separate toggle requires.)
+**Checkoff keying:** checkoff always tracks at **occurrence granularity** — `(ingredient_ref, recipe_id)` — regardless of the ingredient's current `display_mode`, so state survives a mid-trip switch between combined and separate views without needing to un-collapse anything. In **separate** display mode, each occurrence's checkbox maps directly to one `(ingredient_ref, recipe_id)` pair. In **combined** display mode, the UI shows a single checkbox per ingredient, but toggling it omits `recipe_id` from the request, meaning "apply to every occurrence of this `ingredient_ref` in this plan" — letting one endpoint serve both display modes without a schema fork. (Earlier drafts of this endpoint keyed on `ingredient_ref` alone, reasoning that post-normalization there's only one unit per ingredient; that's still true, but doesn't account for needing to check off _individual recipe occurrences_ separately, which the combine/separate toggle requires.)
 
 **Why checkoff is a separate, narrow endpoint rather than part of the general `PATCH`:** two people can genuinely hit this concurrently (both in the store at once), and it happens far more often than plan edits. A targeted `{ingredient_ref, checked}` mutation — rather than resubmitting the whole list — minimizes the blast radius of a lost race: worst case, one checkbox toggle gets overwritten, not the whole list. This isn't airtight (Blob writes aren't atomic compare-and-swap), but for a household of four, last-write-wins on an occasional double-tap is an acceptable failure mode, not one worth building optimistic-concurrency machinery for.
 
@@ -243,12 +252,12 @@ State is split into **domain-separated stores**. No store holds derived data tha
 
 Planned stores for this application:
 
-| Store | Responsibility |
-|---|---|
-| `useRecipeStore` | In-memory recipe data (from IndexedDB or versioned JSON fetch); cache version tracking; load state |
-| `usePlanStore` | Current week's selections, servings, active modes, and checkoff state — the full mutable plan |
-| `useSessionStore` | API sync state: in-flight requests, last-sync timestamp, Vercel Blob connectivity |
-| `useNavStore` | Active view, focused recipe ID — transient UI navigation state only |
+| Store             | Responsibility                                                                                     |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| `useRecipeStore`  | In-memory recipe data (from IndexedDB or versioned JSON fetch); cache version tracking; load state |
+| `usePlanStore`    | Current week's selections, servings, active modes, and checkoff state — the full mutable plan      |
+| `useSessionStore` | API sync state: in-flight requests, last-sync timestamp, Vercel Blob connectivity                  |
+| `useNavStore`     | Active view, focused recipe ID — transient UI navigation state only                                |
 
 Each store file exports its hook and any associated pure selector functions. No store imports another store's module directly — cross-store composition is handled in custom hooks (see below).
 
@@ -258,8 +267,7 @@ Selectors are **pure functions** that take a store's state and return a derived 
 
 ```typescript
 // entitySelectors.ts
-export const selectRecipeById = (id: string) => (s: RecipeState) =>
-  s.recipes[id]
+export const selectRecipeById = (id: string) => (s: RecipeState) => s.recipes[id]
 
 export const selectRecipesForIds = (ids: string[]) => (s: RecipeState) =>
   ids.map((id) => s.recipes[id]).filter(Boolean)
@@ -275,7 +283,7 @@ const recipe = useRecipeStore(selector)
 For selectors that return arrays or objects (new reference on every call), use `useShallow` from `zustand/react/shallow` to prevent spurious re-renders:
 
 ```typescript
-import {useShallow} from 'zustand/react/shallow'
+import { useShallow } from 'zustand/react/shallow'
 const selectedIds = usePlanStore(useShallow((s) => Object.keys(s.selected)))
 ```
 
@@ -295,12 +303,9 @@ export function useResolvedShoppingList() {
   const selected = usePlanStore((s) => s.selected)
   const activeModes = usePlanStore((s) => s.activeModes)
   const exclusionTags = useRecipeStore(
-    useCallback((s) => resolveExclusionTags(s.modes, activeModes), [activeModes])
+    useCallback((s) => resolveExclusionTags(s.modes, activeModes), [activeModes]),
   )
-  return useMemo(
-    () => buildShoppingList(selected, exclusionTags),
-    [selected, exclusionTags],
-  )
+  return useMemo(() => buildShoppingList(selected, exclusionTags), [selected, exclusionTags])
 }
 ```
 
@@ -322,19 +327,21 @@ State that needs to be shared across components lives in Zustand, not React Cont
 - `forwardRef` + `displayName` for any reusable UI primitives that need ref access.
 - Radix UI (or a similarly accessibility-first headless library) for interactive primitives: modals, dropdowns, checkboxes — not hand-rolled.
 
-### File layout (planned)
+### File layout (current)
 
 ```
 content/                         # git submodule → private mealemon-content repo
   recipes/                       # individual recipe JSON files
   ingredients.json               # ingredient registry
 docs/
-api/                             # Vercel Serverless Functions (one file = one endpoint)
-  plans/[weekId].ts              # GET, POST, PATCH plan
-  plans/[weekId]/checkoff.ts     # PATCH checkoff toggle
+api/
+  index.ts                       # single Express app — all API routes
 public/
-  recipes.json                   # built from content submodule at deploy time
-  recipes-version.json           # version manifest for PWA cache invalidation
+  recipes.json                   # built from content submodule at deploy time (gitignored)
+  recipes-version.json           # version manifest for PWA cache invalidation (gitignored)
+scripts/
+  build-recipes.mjs              # compiles content/ into public/recipes.json
+  vercel-build.sh                # Vercel build entry: submodule init + npm run build
 src/
   components/
     views/                       # top-level view components, one per nav destination
@@ -342,13 +349,14 @@ src/
   lib/
     pipeline.ts                  # resolve → scale → normalize → aggregate → round
     schema.ts                    # TypeScript types for Recipe, Ingredient, Plan, etc.
-    validation.ts                # JSON Schema validator wrapper
   store/
     recipeSlice.ts               # useRecipeStore + selectors
-    planSlice.ts                 # usePlanStore + selectors
+    plansSlice.ts                # usePlansStore + selectors (named plans, lifecycle)
     sessionSlice.ts              # useSessionStore
-    navSlice.ts                  # useNavStore
     shoppingSelectors.ts         # cross-store derived hooks (useResolvedShoppingList, etc.)
+  hooks/
+    usePlanSync.ts               # loads + debounce-saves the active plan
+    usePlansSync.ts              # loads the plan index on mount
   fixtures/                      # example recipes used when content submodule is absent
 ```
 
@@ -364,4 +372,5 @@ src/
 - **Shopping list generation as a pure function pipeline**, fully engine-side and testable independent of any recipe content.
 - **Shopping list items carry both a combined total and per-recipe occurrences**, with a computed `combinable` flag (false when units genuinely can't sum, e.g. "1 lb" vs. "4 count" of the same ingredient across recipes) and a user-facing `display_mode` toggle (combined/separate) for the rest — since a valid sum isn't always the most useful shopping unit (e.g. lemon halves vs. a combined 1.5 lemons). Checkoff state tracks at per-recipe-occurrence granularity regardless of display mode, so it survives switching views mid-trip.
 - **Git submodule integration** for pulling the private content repo (`mealemon-content`) into the app repo at `content/`, chosen for minimal new tooling — keeps recipe history in normal git and only needs a deploy-time auth token for Vercel.
-- **Vite + React for the UI, Vercel Serverless Functions for the API** — Next.js rejected (app-router conventions are noise for a single-page tool); Express rejected (requires a persistent server). Vercel Functions are zero-ops, scale to zero, and free on Hobby tier; the 4-endpoint API surface fits the file-per-route convention without ceremony.
+- **Vite + React for the UI, Express for the API** — Next.js rejected (app-router conventions are noise for a single-page tool). Vercel's per-file-handler model was originally used but abandoned after hitting a hard limitation: Vercel bundles each `api/` file in isolation, so any shared helper import fails at runtime. A single Express app at `api/index.ts` with a `vercel.json` rewrite solves this cleanly.
+- **Named plans with a planning → shopping → done lifecycle** — replaces the original week-keyed single-plan model. Makes the state machine explicit, handles concurrent active plans, and cleanly separates "still choosing recipes" from "in the store."

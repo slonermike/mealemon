@@ -18,14 +18,15 @@ Evaluated alternatives and the reasoning behind what was chosen or rejected. Rec
 
 ## API server
 
-**Decision:** Vercel Serverless Functions (plain TypeScript files in `api/`).
+**Decision:** Single Express app at `api/index.ts`, deployed as one Vercel Serverless Function. All `/api/*` traffic is routed to it via a `vercel.json` rewrite.
 
 **Evaluated:**
 
-- **Next.js** — app-router and server-component conventions are noise for a single-page tool with 4 API endpoints.
-- **Express** — requires a persistent server; adds ops burden (VPS, container, or a paid hosting tier).
+- **Vercel Serverless Functions (file-per-route)** — originally chosen, but abandoned. Vercel bundles each `api/` file in complete isolation; any relative import to a shared helper outside that file fails at runtime with `ERR_MODULE_NOT_FOUND`. There is no reliable way to share code across per-file handlers without inlining everything (tried `api/_lib/`, `src/lib/` with `includeFiles` in `vercel.json` — both failed).
+- **Hono** — evaluated briefly as a lightweight alternative; rejected because `hono/vercel` with `export const config = { runtime: 'nodejs' }` caused `vercel dev` to hang indefinitely with a 30s timeout (`HeadersTimeoutError` from undici on blob calls). Less battle-tested than Express.
+- **Next.js** — app-router and server-component conventions are noise for a single-page tool.
 
-**Chosen because:** Vercel Functions are zero-ops, scale to zero, free on Hobby tier, and the 4-endpoint API surface fits the file-per-route convention without ceremony. Vercel Blob integration (used for checkoff sync) is first-class on the same platform.
+**Chosen because:** Express is well-trodden, a single entry point sidesteps the bundling isolation problem entirely, and shared helpers are just regular module-level functions. The `vercel.json` rewrite `{ "source": "/api/(.*)", "destination": "/api/index" }` routes all traffic correctly in both `vercel dev` and production.
 
 ---
 
@@ -55,6 +56,21 @@ Evaluated alternatives and the reasoning behind what was chosen or rejected. Rec
 ## Authentication
 
 **Decision:** Recorded in the content repo (`content/decisions.md`) — contains security-sensitive details about the credential scheme.
+
+---
+
+## Plan data model
+
+**Decision:** Named plans with a `planning` → `shopping` → `done` lifecycle, stored individually as private Vercel Blob files (`plans/<id>.json`) with a lightweight index at `plans/index.json`.
+
+**Evaluated:**
+
+- **Week-keyed single plan** (original design) — `plans/{weekId}` as the API surface. Abandoned because it doesn't handle "start a new plan at any time" or "finish shopping one plan while starting the next." The week boundary is arbitrary and creates edge cases.
+- **Active plan + meal history** — a single active plan plus a rolling log of archived meals. Abandoned because it made edge cases harder (e.g. checking off items then modifying the plan mid-trip) and was harder to reason about than explicit lifecycle states.
+
+**Chosen because:** explicit named plans with a lifecycle make the state machine clear. A plan starts in `planning` (shopping list is dimmed, you're still adding recipes), moves to `shopping` (list is live, you're in the store), and finishes as `done` (deletable). Multiple plans can coexist; only one is "active" (the most recently navigated to) at a time in the UI.
+
+**How to apply:** see `src/lib/schema.ts` for `Plan`, `PlanSummary`, `PlanIndex` types. API endpoints are in `api/index.ts`. Frontend state is in `src/store/plansSlice.ts`.
 
 ---
 
