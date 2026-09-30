@@ -44,9 +44,19 @@ export const usePlansStore = create<PlansState>()((set) => ({
 
   loadPlanIndex: (summaries) => set({ planIndex: summaries, indexLoaded: true }),
 
-  setActivePlan: (id) => set({ activePlanId: id }),
+  setActivePlan: (id) =>
+    set((s) => {
+      const latestActive = s.planIndex.find((p) => p.status !== 'done')
+      if (latestActive && id !== latestActive.id) {
+        localStorage.setItem('mealemon_active_plan', id)
+      } else {
+        localStorage.removeItem('mealemon_active_plan')
+      }
+      return { activePlanId: id }
+    }),
 
-  createPlan: (plan) =>
+  createPlan: (plan) => {
+    localStorage.removeItem('mealemon_active_plan')
     set((s) => ({
       plans: { ...s.plans, [plan.id]: plan },
       planIndex: [
@@ -60,14 +70,18 @@ export const usePlansStore = create<PlansState>()((set) => ({
         ...s.planIndex,
       ],
       activePlanId: plan.id,
-    })),
+    }))
+  },
 
   deletePlan: (id) =>
-    set((s) => ({
-      plans: Object.fromEntries(Object.entries(s.plans).filter(([k]) => k !== id)),
-      planIndex: s.planIndex.filter((p) => p.id !== id),
-      activePlanId: s.activePlanId === id ? null : s.activePlanId,
-    })),
+    set((s) => {
+      if (s.activePlanId === id) localStorage.removeItem('mealemon_active_plan')
+      return {
+        plans: Object.fromEntries(Object.entries(s.plans).filter(([k]) => k !== id)),
+        planIndex: s.planIndex.filter((p) => p.id !== id),
+        activePlanId: s.activePlanId === id ? null : s.activePlanId,
+      }
+    }),
 
   loadPlan: (plan) => set((s) => ({ plans: { ...s.plans, [plan.id]: plan } })),
 
