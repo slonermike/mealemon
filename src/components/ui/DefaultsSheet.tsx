@@ -31,7 +31,6 @@ export function DefaultsSheet({ open, onOpenChange }: Props) {
       <Dialog.Portal>
         <Dialog.Overlay style={overlayStyle} />
         <Dialog.Content style={sheetStyle} aria-describedby={undefined}>
-          <span aria-hidden={true} style={handleStyle} />
           <div style={titleRowStyle}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ ...eyebrowStyle, color: tab.recipes.accent }}>{'Settings'}</span>
@@ -83,6 +82,7 @@ export function DefaultsSheet({ open, onOpenChange }: Props) {
           </p>
 
           <Dialog.Close style={doneStyle}>{'Done'}</Dialog.Close>
+          <span aria-hidden={true} style={handleStyle} />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -100,18 +100,18 @@ const sheetStyle: React.CSSProperties = {
   position: 'fixed',
   left: '50%',
   transform: 'translateX(-50%)',
-  bottom: 0,
+  top: 0,
   width: 'min(480px, 100vw)',
   maxHeight: '90vh',
   overflowY: 'auto',
   boxSizing: 'border-box',
   background: color.surface,
-  borderRadius: '24px 24px 0 0',
-  padding: '8px 20px 28px',
+  borderRadius: '0 0 24px 24px',
+  padding: '20px 20px 8px',
   display: 'flex',
   flexDirection: 'column',
   gap: 20,
-  boxShadow: '0 -8px 32px rgba(28, 27, 23, 0.18)',
+  boxShadow: '0 8px 32px rgba(28, 27, 23, 0.18)',
   zIndex: 101,
 }
 

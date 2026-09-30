@@ -12,7 +12,7 @@ Warm off-white ground, ink text, **Fraunces** for tab titles and plan names, **F
 | Shopping | Harbor `#1D5C8C`     | In the store            |
 | Plans    | Terracotta `#A34A1B` | Organise, review, start |
 
-Shared building blocks: `TabHeader` (tinted band with eyebrow, title, right-hand action), `icons.tsx` (inline stroke SVG, no emoji), `ServingsStepper`, `ModeToggleList` (exclusion chips), `DefaultsSheet` (plan defaults bottom sheet).
+Shared building blocks: `TabHeader` (tinted band with eyebrow, title, right-hand action; sticky, and shrinks to a slim title bar after scrolling ~48px, so it never leaves the screen), `icons.tsx` (inline stroke SVG, no emoji), `ServingsStepper`, `ModeToggleList` (exclusion chips), `DefaultsSheet` (plan defaults sheet, anchored to the top because its button is in the Recipes header).
 
 ## Rules
 

@@ -152,33 +152,38 @@ export function ShoppingList() {
           ) : undefined
         }
       >
-        {total > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={progressTextStyle}>
-              <span>
-                <strong style={{ color: color.ink }}>{`${done} of ${total}`}</strong>
-                {' in cart'}
-              </span>
-              <span>{left === 0 ? 'All done' : `${left} to go`}</span>
-            </div>
-            <div
-              role={'progressbar'}
-              aria-label={'Items in cart'}
-              aria-valuemin={0}
-              aria-valuemax={total}
-              aria-valuenow={done}
-              style={trackStyle}
-            >
+        {(compact) =>
+          total > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {!compact && (
+                <div style={progressTextStyle}>
+                  <span>
+                    <strong style={{ color: color.ink }}>{`${done} of ${total}`}</strong>
+                    {' in cart'}
+                  </span>
+                  <span>{left === 0 ? 'All done' : `${left} to go`}</span>
+                </div>
+              )}
               <div
-                style={{
-                  height: '100%',
-                  background: tab.shopping.accent,
-                  width: `${(done / total) * 100}%`,
-                }}
-              />
+                role={'progressbar'}
+                aria-label={'Items in cart'}
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={done}
+                aria-valuetext={`${done} of ${total} in cart`}
+                style={trackStyle}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    background: tab.shopping.accent,
+                    width: `${(done / total) * 100}%`,
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
       </TabHeader>
       <main style={containerStyle}>
         {isPlanning && (
