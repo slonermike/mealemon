@@ -136,6 +136,27 @@ export function ShoppingList() {
         tab={'shopping'}
         eyebrow={planLabel ?? 'Shopping list'}
         title={'Shopping'}
+        pinned={
+          total > 0 ? (
+            <div
+              role={'progressbar'}
+              aria-label={'Items in cart'}
+              aria-valuemin={0}
+              aria-valuemax={total}
+              aria-valuenow={done}
+              aria-valuetext={`${done} of ${total} in cart`}
+              style={trackStyle}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  background: tab.shopping.accent,
+                  width: `${(done / total) * 100}%`,
+                }}
+              />
+            </div>
+          ) : undefined
+        }
         action={
           syncLabel ? (
             <span
@@ -152,38 +173,15 @@ export function ShoppingList() {
           ) : undefined
         }
       >
-        {(compact) =>
-          total > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {!compact && (
-                <div style={progressTextStyle}>
-                  <span>
-                    <strong style={{ color: color.ink }}>{`${done} of ${total}`}</strong>
-                    {' in cart'}
-                  </span>
-                  <span>{left === 0 ? 'All done' : `${left} to go`}</span>
-                </div>
-              )}
-              <div
-                role={'progressbar'}
-                aria-label={'Items in cart'}
-                aria-valuemin={0}
-                aria-valuemax={total}
-                aria-valuenow={done}
-                aria-valuetext={`${done} of ${total} in cart`}
-                style={trackStyle}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    background: tab.shopping.accent,
-                    width: `${(done / total) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )
-        }
+        {total > 0 && (
+          <div style={progressTextStyle}>
+            <span>
+              <strong style={{ color: color.ink }}>{`${done} of ${total}`}</strong>
+              {' in cart'}
+            </span>
+            <span>{left === 0 ? 'All done' : `${left} to go`}</span>
+          </div>
+        )}
       </TabHeader>
       <main style={containerStyle}>
         {isPlanning && (
