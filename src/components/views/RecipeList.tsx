@@ -211,6 +211,7 @@ const cardStyleBase: React.CSSProperties = {
 const cardSelectedStyle: React.CSSProperties = {
   ...cardStyleBase,
   border: `2px solid ${tab.recipes.accent}`,
+  background: tab.recipes.panel,
 }
 
 const cardIncompatibleStyle: React.CSSProperties = {
