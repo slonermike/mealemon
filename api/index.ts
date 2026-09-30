@@ -77,8 +77,9 @@ async function deletePlanBlob(id: string) {
 }
 async function readPlanIndex(): Promise<PlanIndex> {
   const raw = await readBlob<Record<string, unknown>>('plans/index.json')
-  if (!raw || (raw.schema_version as number) < 1)
+  if (!raw || (raw.schema_version as number) < 1) {
     return { schema_version: SCHEMA_VERSION, plans: [] }
+  }
   return raw as unknown as PlanIndex
 }
 async function writePlanIndex(index: PlanIndex) {
