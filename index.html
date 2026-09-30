@@ -11,6 +11,12 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Figtree:wght@400;500;600;700&display=swap"
     />
     <style>
+      /* The sticky header changes height while scrolling; browser scroll anchoring would
+         compensate by moving scrollY, which flips the header back and forth. */
+      html,
+      body {
+        overflow-anchor: none;
+      }
       body {
         margin: 0;
         background: #faf7f0;
