@@ -1,198 +1,49 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { usePlansStore, selectActivePlan } from '@/store/plansSlice'
-import { useAuthStore } from '@/store/authSlice'
-import { RecipeListItem } from '@/components/views/RecipeList'
-import type { Plan, PlanStatus } from '@/lib/schema'
+import { usePlansStore } from '@/store/plansSlice'
+import { PlanCard } from '@/components/ui/PlanCard'
+import { color } from '@/theme'
 
 export function PlanDetail() {
   const { planId } = useParams({ from: '/plans/$planId' })
   const setActivePlan = usePlansStore((s) => s.setActivePlan)
-  const activePlan = usePlansStore(selectActivePlan)
-  const setPlanStatus = usePlansStore((s) => s.setPlanStatus)
-  const deletePlan = usePlansStore((s) => s.deletePlan)
-  const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated)
+  const plan = usePlansStore((s) => s.plans[planId] ?? null)
   const navigate = useNavigate()
 
   useEffect(() => {
     setActivePlan(planId)
   }, [planId, setActivePlan])
 
-  const plan = activePlan?.id === planId ? activePlan : null
-
-  if (!plan) {
-    return (
-      <div style={containerStyle}>
-        <p style={emptyStyle}>{'Loading…'}</p>
-      </div>
-    )
-  }
-
-  async function handleMarkDone() {
-    setPlanStatus(plan!.id, 'done')
-    const updated: Plan = { ...plan!, status: 'done' }
-    await fetch(`/api/plans/${plan!.id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updated),
-    }).catch(() => {})
-  }
-
-  async function handleDelete() {
-    const res = await fetch(`/api/plans/${plan!.id}`, { method: 'DELETE' })
-    if (res.status === 401) {
-      setUnauthenticated()
-      return
-    }
-    if (!res.ok) return
-    deletePlan(plan!.id)
-    void navigate({ to: '/plans' })
-  }
-
   return (
     <div style={containerStyle}>
-      <button style={backLinkStyle} onClick={() => void navigate({ to: '/plans' })}>
+      <button style={backButtonStyle} onClick={() => void navigate({ to: '/plans' })}>
         {'← Plans'}
       </button>
-
-      <div style={headerRowStyle}>
-        <h2 style={headingStyle}>{plan.label}</h2>
-        <span style={statusBadgeStyle(plan.status)}>{plan.status}</span>
-      </div>
-
-      <div style={actionsRowStyle}>
-        {plan.status === 'shopping' && (
-          <button style={primaryButtonStyle} onClick={() => handleMarkDone()}>
-            {'Mark Done'}
-          </button>
-        )}
-        {(plan.status === 'planning' || plan.status === 'shopping') && (
-          <button style={shoppingLinkStyle} onClick={() => void navigate({ to: '/shopping' })}>
-            {'Shopping List →'}
-          </button>
-        )}
-      </div>
-
-      <section style={sectionStyle}>
-        <div style={sectionLabelStyle}>
-          {'Recipes'}{' '}
-          <span style={countStyle}>
-            {'('}
-            {plan.selected.length}
-            {')'}
-          </span>
-        </div>
-        {plan.selected.length === 0 ? (
-          <p style={emptyStyle}>{'No recipes yet. Add some from the Recipes tab.'}</p>
-        ) : (
-          <ul style={recipeListStyle}>
-            {plan.selected.map((sel) => (
-              <RecipeListItem key={sel.recipe_id} recipeId={sel.recipe_id} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {plan.status === 'done' && (
-        <button style={deleteButtonStyle} onClick={handleDelete}>
-          {'Delete plan'}
-        </button>
+      {plan ? (
+        <PlanCard plan={plan} collapsible={false} />
+      ) : (
+        <p style={loadingStyle}>{'Loading…'}</p>
       )}
     </div>
   )
 }
 
-function statusBadgeStyle(status: PlanStatus): React.CSSProperties {
-  const colors: Record<PlanStatus, { bg: string; color: string }> = {
-    planning: { bg: '#dbeafe', color: '#1e40af' },
-    shopping: { bg: '#d1fae5', color: '#065f46' },
-    done: { bg: '#f3f4f6', color: '#6b7280' },
-  }
-  const c = colors[status]
-  return {
-    fontSize: 12,
-    fontWeight: 600,
-    padding: '3px 10px',
-    borderRadius: 10,
-    background: c.bg,
-    color: c.color,
-    textTransform: 'capitalize',
-  }
+const containerStyle: React.CSSProperties = {
+  maxWidth: 480,
+  margin: '0 auto',
+  padding: '8px 16px 32px',
 }
 
-const containerStyle: React.CSSProperties = { padding: '16px 16px 32px' }
-
-const backLinkStyle: React.CSSProperties = {
+const backButtonStyle: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  padding: 0,
-  fontSize: 14,
+  padding: '12px 0',
+  fontSize: 15,
+  fontWeight: 500,
   color: '#2563eb',
   cursor: 'pointer',
-  marginBottom: 16,
   display: 'block',
-}
-
-const headerRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
   marginBottom: 12,
 }
 
-const headingStyle: React.CSSProperties = { fontSize: 20, fontWeight: 700, margin: 0 }
-
-const actionsRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  marginBottom: 24,
-}
-
-const primaryButtonStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 600,
-  padding: '7px 16px',
-  borderRadius: 8,
-  border: 'none',
-  background: '#2563eb',
-  color: '#fff',
-  cursor: 'pointer',
-}
-
-const shoppingLinkStyle: React.CSSProperties = {
-  fontSize: 14,
-  color: '#2563eb',
-  background: 'none',
-  border: 'none',
-  padding: 0,
-  cursor: 'pointer',
-}
-
-const sectionStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 }
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: '#6b7280',
-  marginBottom: 4,
-}
-
-const countStyle: React.CSSProperties = { fontWeight: 400, textTransform: 'none' }
-
-const emptyStyle: React.CSSProperties = { color: '#6b7280', fontSize: 14, margin: 0 }
-
-const recipeListStyle: React.CSSProperties = { listStyle: 'none', padding: 0, margin: 0 }
-
-const deleteButtonStyle: React.CSSProperties = {
-  marginTop: 32,
-  fontSize: 13,
-  color: '#dc2626',
-  background: 'none',
-  border: '1px solid #fca5a5',
-  borderRadius: 8,
-  padding: '6px 14px',
-  cursor: 'pointer',
-}
+const loadingStyle: React.CSSProperties = { color: color.muted, fontSize: 16 }

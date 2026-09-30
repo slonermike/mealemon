@@ -1,16 +1,18 @@
 import { useNavigate } from '@tanstack/react-router'
+import { useShallow } from 'zustand/react/shallow'
 import { usePlansStore } from '@/store/plansSlice'
 import { useAuthStore } from '@/store/authSlice'
-import type { Plan, PlanStatus, PlanSummary } from '@/lib/schema'
+import { PlanCard } from '@/components/ui/PlanCard'
 import { TabHeader } from '@/components/ui/TabHeader'
 import { BasketIcon, CheckIcon, ChevronIcon, PencilIcon, PlusIcon } from '@/components/ui/icons'
-import { badgeBase, color, font, sectionLabelStyle, tab } from '@/theme'
+import { badgeBase, color, sectionLabelStyle, tab } from '@/theme'
+import type { Plan, PlanStatus, PlanSummary } from '@/lib/schema'
 
 export function PlansView() {
-  const planIndex = usePlansStore((s) => s.planIndex)
+  const planIndex = usePlansStore(useShallow((s) => s.planIndex))
+  const plans = usePlansStore(useShallow((s) => s.plans))
   const indexLoaded = usePlansStore((s) => s.indexLoaded)
   const createPlan = usePlansStore((s) => s.createPlan)
-  const setActivePlan = usePlansStore((s) => s.setActivePlan)
   const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated)
   const navigate = useNavigate()
 
@@ -26,16 +28,7 @@ export function PlansView() {
     if (!res.ok) return
     const plan = (await res.json()) as Plan
     createPlan(plan)
-    void navigate({ to: '/plans/$planId', params: { planId: plan.id } })
   }
-
-  function handleOpen(summary: PlanSummary) {
-    setActivePlan(summary.id)
-    void navigate({ to: '/plans/$planId', params: { planId: summary.id } })
-  }
-
-  const shopping = active.filter((p) => p.status === 'shopping')
-  const planning = active.filter((p) => p.status !== 'shopping')
 
   return (
     <>
@@ -59,22 +52,29 @@ export function PlansView() {
           <>
             {active.length > 0 && (
               <section style={sectionStyle}>
-                <h2 style={sectionLabelStyle_(tab.plans.accent)}>{'In progress'}</h2>
-                {shopping.map((p) => (
-                  <PlanRow key={p.id} summary={p} onOpen={() => handleOpen(p)} featured={true} />
-                ))}
-                {planning.map((p) => (
-                  <PlanRow key={p.id} summary={p} onOpen={() => handleOpen(p)} />
-                ))}
+                <h2 style={{ ...sectionLabelStyle, color: tab.plans.accent }}>{'In progress'}</h2>
+                {active.map((summary) => {
+                  const plan = plans[summary.id]
+                  return plan ? (
+                    <PlanCard key={summary.id} plan={plan} collapsible={true} />
+                  ) : (
+                    <PlanCardSkeleton key={summary.id} summary={summary} />
+                  )
+                })}
               </section>
             )}
             {done.length > 0 && (
               <section style={{ ...sectionStyle, marginTop: 24 }}>
-                <h2 style={sectionLabelStyle_(color.muted)}>{'Done'}</h2>
+                <h2 style={{ ...sectionLabelStyle, color: color.muted }}>{'Done'}</h2>
                 <ul style={doneListStyle}>
                   {done.map((p, i) => (
                     <li key={p.id} style={i === 0 ? undefined : doneItemStyle}>
-                      <PlanRow summary={p} onOpen={() => handleOpen(p)} compact={true} />
+                      <DoneRow
+                        summary={p}
+                        onOpen={() =>
+                          void navigate({ to: '/plans/$planId', params: { planId: p.id } })
+                        }
+                      />
                     </li>
                   ))}
                 </ul>
@@ -87,17 +87,19 @@ export function PlansView() {
   )
 }
 
-function PlanRow({
-  summary,
-  onOpen,
-  featured,
-  compact,
-}: {
-  summary: PlanSummary
-  onOpen: () => void
-  featured?: boolean
-  compact?: boolean
-}) {
+function PlanCardSkeleton({ summary }: { summary: PlanSummary }) {
+  const setActivePlan = usePlansStore((s) => s.setActivePlan)
+  return (
+    <div style={skeletonStyle}>
+      <button type={'button'} style={skeletonButtonStyle} onClick={() => setActivePlan(summary.id)}>
+        <span style={skeletonLabelStyle}>{summary.label}</span>
+        <StatusBadge status={summary.status} />
+      </button>
+    </div>
+  )
+}
+
+function DoneRow({ summary, onOpen }: { summary: PlanSummary; onOpen: () => void }) {
   const date = new Date(summary.created_at).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -105,45 +107,30 @@ function PlanRow({
   })
   const recipes = `${summary.recipe_count} ${summary.recipe_count === 1 ? 'recipe' : 'recipes'}`
 
-  const style = compact ? compactRowStyle : featured ? featuredRowStyle : rowStyle
-
   return (
-    <button style={style} onClick={onOpen}>
-      <span style={rowMainStyle}>
-        <span style={featured ? featuredLabelStyle : compact ? compactLabelStyle : rowLabelStyle}>
-          {summary.label}
-        </span>
-        <span style={rowMetaStyle}>
+    <button style={doneRowStyle} onClick={onOpen}>
+      <span style={doneMainStyle}>
+        <span style={doneLabelStyle}>{summary.label}</span>
+        <span style={doneMetaStyle}>
           {recipes}
           {' · '}
           {date}
         </span>
-        {featured && (
-          <span style={continueStyle}>
-            {'Continue shopping'}
-            <ChevronIcon size={18} />
-          </span>
-        )}
       </span>
-      <StatusBadge status={summary.status} />
+      <span style={doneRightStyle}>
+        <StatusBadge status={summary.status} />
+        <ChevronIcon size={18} />
+      </span>
     </button>
   )
 }
 
-const STATUS_LABEL: Record<PlanStatus, string> = {
-  planning: 'Planning',
-  shopping: 'Shopping',
-  done: 'Done',
-}
-
-// Every status has an icon, a word and a distinct fill/outline — never color alone.
 function StatusBadge({ status }: { status: PlanStatus }) {
-  const label = STATUS_LABEL[status]
   if (status === 'planning') {
     return (
       <span style={{ ...badgeBase, ...planningBadgeStyle }}>
         <PencilIcon size={14} />
-        {label}
+        {'Planning'}
       </span>
     )
   }
@@ -151,41 +138,16 @@ function StatusBadge({ status }: { status: PlanStatus }) {
     return (
       <span style={{ ...badgeBase, ...shoppingBadgeStyle }}>
         <BasketIcon size={14} />
-        {label}
+        {'Shopping'}
       </span>
     )
   }
   return (
     <span style={{ ...badgeBase, ...doneBadgeStyle }}>
       <CheckIcon size={14} />
-      {label}
+      {'Done'}
     </span>
   )
-}
-
-function sectionLabelStyle_(c: string): React.CSSProperties {
-  return { ...sectionLabelStyle, color: c }
-}
-
-const planningBadgeStyle: React.CSSProperties = {
-  borderRadius: 999,
-  background: color.surface,
-  border: `1.5px solid ${tab.plans.accent}`,
-  padding: '2px 10px 2px 8px',
-  color: tab.plans.accent,
-  whiteSpace: 'nowrap',
-}
-
-const shoppingBadgeStyle: React.CSSProperties = {
-  borderRadius: 999,
-  background: tab.shopping.accent,
-  color: '#FFFFFF',
-  whiteSpace: 'nowrap',
-}
-
-const doneBadgeStyle: React.CSSProperties = {
-  color: color.muted,
-  whiteSpace: 'nowrap',
 }
 
 const containerStyle: React.CSSProperties = {
@@ -213,45 +175,6 @@ const emptyStyle: React.CSSProperties = { color: color.muted, fontSize: 16 }
 
 const sectionStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 12 }
 
-const rowBase: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  gap: 12,
-  width: '100%',
-  minHeight: 44,
-  boxSizing: 'border-box',
-  cursor: 'pointer',
-  textAlign: 'left',
-  color: color.ink,
-  fontFamily: 'inherit',
-}
-
-const rowStyle: React.CSSProperties = {
-  ...rowBase,
-  alignItems: 'center',
-  padding: '14px 16px',
-  borderRadius: 16,
-  border: `1px solid ${color.line}`,
-  background: color.surface,
-}
-
-const featuredRowStyle: React.CSSProperties = {
-  ...rowBase,
-  padding: 18,
-  borderRadius: 18,
-  border: `2px solid ${tab.plans.accent}`,
-  background: color.surface,
-}
-
-const compactRowStyle: React.CSSProperties = {
-  ...rowBase,
-  alignItems: 'center',
-  padding: '12px 16px',
-  border: 'none',
-  background: 'none',
-}
-
 const doneListStyle: React.CSSProperties = {
   listStyle: 'none',
   margin: 0,
@@ -264,26 +187,76 @@ const doneListStyle: React.CSSProperties = {
 
 const doneItemStyle: React.CSSProperties = { borderTop: `1px solid ${color.lineSoft}` }
 
-const rowMainStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 }
-
-const rowLabelStyle: React.CSSProperties = { fontSize: 17, fontWeight: 600 }
-
-const featuredLabelStyle: React.CSSProperties = {
-  fontFamily: font.display,
-  fontSize: 22,
-  fontWeight: 600,
+const doneRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  width: '100%',
+  padding: '12px 16px',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  textAlign: 'left',
+  color: color.ink,
+  fontFamily: 'inherit',
+  minHeight: 44,
+  boxSizing: 'border-box',
 }
 
-const compactLabelStyle: React.CSSProperties = { fontSize: 16, fontWeight: 500 }
-
-const rowMetaStyle: React.CSSProperties = { fontSize: 14, color: color.muted }
-
-const continueStyle: React.CSSProperties = {
-  display: 'inline-flex',
+const doneMainStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 3 }
+const doneLabelStyle: React.CSSProperties = { fontSize: 16, fontWeight: 500 }
+const doneMetaStyle: React.CSSProperties = { fontSize: 13, color: color.muted }
+const doneRightStyle: React.CSSProperties = {
+  display: 'flex',
   alignItems: 'center',
-  gap: 4,
-  marginTop: 10,
-  fontSize: 15,
-  fontWeight: 600,
+  gap: 6,
+  color: color.muted,
+  flexShrink: 0,
+}
+
+const skeletonStyle: React.CSSProperties = {
+  borderRadius: 16,
+  border: `1px solid ${color.line}`,
+  background: color.surface,
+  overflow: 'hidden',
+}
+
+const skeletonButtonStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  width: '100%',
+  padding: '14px 16px',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  textAlign: 'left',
+  color: color.ink,
+  fontFamily: 'inherit',
+  minHeight: 44,
+  boxSizing: 'border-box',
+}
+
+const skeletonLabelStyle: React.CSSProperties = { fontSize: 18, fontWeight: 600 }
+
+const planningBadgeStyle: React.CSSProperties = {
+  borderRadius: 999,
+  background: color.surface,
+  border: `1.5px solid ${tab.plans.accent}`,
   color: tab.plans.accent,
+  whiteSpace: 'nowrap',
+}
+
+const shoppingBadgeStyle: React.CSSProperties = {
+  borderRadius: 999,
+  background: tab.shopping.accent,
+  color: '#FFFFFF',
+  whiteSpace: 'nowrap',
+}
+
+const doneBadgeStyle: React.CSSProperties = {
+  color: color.muted,
+  whiteSpace: 'nowrap',
 }
