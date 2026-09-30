@@ -2,7 +2,7 @@
 
 ## What this is
 
-A family meal planning PWA replacing Mealime (shutting down Oct 2026). Vite + React frontend, Express API on Vercel, recipe data in a private git submodule. See `docs/design-doc.md` for full architecture and `docs/decisions.md` for why things are the way they are.
+A family meal planning PWA replacing Mealime (shutting down Oct 2026). Vite + React frontend, Express API on Vercel, recipe data in a private git submodule. See `docs/design-doc.md` for full architecture and `docs/decisions.md` for why things are the way they are. For anything visual, read `docs/DESIGN.md` and use tokens from `src/theme.ts`.
 
 ## Stack
 
@@ -23,11 +23,18 @@ A family meal planning PWA replacing Mealime (shutting down Oct 2026). Vite + Re
 
 **Local dev:** run `vercel dev`. Requires `.env` (not `.env.local`) — after `vercel env pull`, run `cp .env.local .env`.
 
+## UI conventions
+
+- Styles are inline `React.CSSProperties`; colors and type come from `src/theme.ts` — no hard-coded hex values in components.
+- Meet the accessibility rules in `docs/DESIGN.md` (contrast, 44px targets, icon + text for status, real form controls).
+- Checks: `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run format:check`. `npm ci` may fail because the lockfile is out of sync; `npm install --no-package-lock` works locally.
+
 ## File layout
 
 ```
 api/index.ts          — all API routes (Express)
 src/lib/schema.ts     — shared TypeScript types
+src/theme.ts          — design tokens (colors, fonts, sizes)
 src/lib/pipeline.ts   — shopping list pipeline (pure function)
 src/store/
   plansSlice.ts       — named plans state + selectors
@@ -39,9 +46,10 @@ src/hooks/
   usePlansSync.ts     — loads plan index on mount
 src/components/
   views/              — one component per nav destination
-  ui/                 — reusable primitives
+  ui/                 — reusable primitives (TabHeader, DefaultsSheet, icons, ...)
 docs/
   design-doc.md       — full architecture spec
+  DESIGN.md           — UI design rules and accessibility requirements
   decisions.md        — evaluated alternatives and rationale
   session-log.md      — per-session changelogs
 ```

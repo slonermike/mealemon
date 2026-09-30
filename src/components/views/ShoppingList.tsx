@@ -1,12 +1,15 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { usePlansStore, selectIsCheckedOff } from '@/store/plansSlice'
+import { usePlansStore, selectIsCheckedOff, selectActivePlan } from '@/store/plansSlice'
 import { useRecipeStore } from '@/store/recipeSlice'
 import { useResolvedShoppingList, type ShoppingGroup } from '@/store/shoppingSelectors'
 import { useSessionStore } from '@/store/sessionSlice'
 import { useAuthStore } from '@/store/authSlice'
 import { formatAmount } from '@/lib/units'
 import type { CheckoffKey, ShoppingItem } from '@/lib/schema'
+import { TabHeader } from '@/components/ui/TabHeader'
+import { CheckIcon, CloudCheckIcon } from '@/components/ui/icons'
+import { color, status, tab } from '@/theme'
 
 function ShoppingRow({ item }: { item: ShoppingItem }) {
   const registry = useRecipeStore((s) => s.registry)
@@ -33,19 +36,22 @@ function ShoppingRow({ item }: { item: ShoppingItem }) {
 
   return (
     <li style={checked ? { ...rowStyle, ...rowCheckedStyle } : rowStyle}>
-      <button
-        type={'button'}
-        onClick={() => toggle(combinedKey)}
-        style={checkboxStyle(checked)}
-        aria-label={checked ? `Uncheck ${name}` : `Check ${name}`}
-      >
-        {checked && <span style={checkmarkStyle}>{'✓'}</span>}
-      </button>
-      <span style={amountStyle}>
-        {amt}
-        {amt && unit ? ` ${unit}` : unit}
-      </span>
-      <span style={checked ? { ...nameStyle, ...nameCheckedStyle } : nameStyle}>{name}</span>
+      <label style={rowLabelStyle}>
+        <input
+          type={'checkbox'}
+          checked={checked}
+          onChange={() => toggle(combinedKey)}
+          style={checkboxInputStyle}
+        />
+        <span aria-hidden={true} style={checkboxStyle(checked)}>
+          {checked && <CheckIcon size={14} />}
+        </span>
+        <span style={checked ? { ...nameStyle, ...nameCheckedStyle } : nameStyle}>{name}</span>
+        <span style={amountStyle}>
+          {amt}
+          {amt && unit ? ` ${unit}` : unit}
+        </span>
+      </label>
     </li>
   )
 }
@@ -53,7 +59,7 @@ function ShoppingRow({ item }: { item: ShoppingItem }) {
 function ShoppingSection({ group }: { group: ShoppingGroup }) {
   return (
     <section>
-      <div style={sectionHeaderStyle}>{group.label}</div>
+      <h2 style={sectionHeaderStyle}>{group.label}</h2>
       <ul style={listStyle}>
         {group.items.map((item) => (
           <ShoppingRow key={item.ingredient_ref} item={item} />
@@ -88,14 +94,21 @@ export function ShoppingList() {
     if (res.status === 401) setUnauthenticated()
   }
 
+  const checkedOff = usePlansStore(useShallow((s) => selectActivePlan(s)?.checked_off ?? []))
+  const planLabel = usePlansStore((s) =>
+    s.activePlanId ? s.planIndex.find((p) => p.id === s.activePlanId)?.label : undefined,
+  )
+
   if (selected.length === 0) {
     return (
-      <div style={containerStyle}>
-        <h1 style={headingStyle}>{'Shopping List'}</h1>
-        <p style={{ padding: '24px 16px', color: '#6b7280' }}>
-          {'No recipes in your plan yet. Add some from the Recipes tab.'}
-        </p>
-      </div>
+      <>
+        <TabHeader tab={'shopping'} eyebrow={planLabel ?? 'Shopping list'} title={'Shopping'} />
+        <main style={containerStyle}>
+          <p style={{ padding: '24px 16px', color: color.muted, fontSize: 16 }}>
+            {'No recipes in your plan yet. Add some from the Recipes tab.'}
+          </p>
+        </main>
+      </>
     )
   }
 
@@ -110,152 +123,229 @@ export function ShoppingList() {
 
   const isPlanning = planStatus === 'planning'
 
+  const allItems = groups.flatMap((g) => g.items)
+  const total = allItems.length
+  const done = allItems.filter((item) =>
+    checkedOff.some((k) => k.ingredient_ref === item.ingredient_ref && k.recipe_id === undefined),
+  ).length
+  const left = total - done
+
   return (
-    <div style={containerStyle}>
-      <div style={headerRowStyle}>
-        <h1 style={headingStyle}>{'Shopping List'}</h1>
-        {syncLabel && (
-          <span
-            style={syncState === 'error' ? { ...syncLabelStyle, color: '#dc2626' } : syncLabelStyle}
-          >
-            {syncLabel}
-          </span>
+    <>
+      <TabHeader
+        tab={'shopping'}
+        eyebrow={planLabel ?? 'Shopping list'}
+        title={'Shopping'}
+        pinned={
+          total > 0 ? (
+            <div
+              role={'progressbar'}
+              aria-label={'Items in cart'}
+              aria-valuemin={0}
+              aria-valuemax={total}
+              aria-valuenow={done}
+              aria-valuetext={`${done} of ${total} in cart`}
+              style={trackStyle}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  background: tab.shopping.accent,
+                  width: `${(done / total) * 100}%`,
+                }}
+              />
+            </div>
+          ) : undefined
+        }
+        action={
+          syncLabel ? (
+            <span
+              role={'status'}
+              style={
+                syncState === 'error'
+                  ? { ...syncLabelStyle, color: status.danger.fg }
+                  : syncLabelStyle
+              }
+            >
+              <CloudCheckIcon size={16} />
+              {syncLabel}
+            </span>
+          ) : undefined
+        }
+      >
+        {total > 0 && (
+          <div style={progressTextStyle}>
+            <span>
+              <strong style={{ color: color.ink }}>{`${done} of ${total}`}</strong>
+              {' in cart'}
+            </span>
+            <span>{left === 0 ? 'All done' : `${left} to go`}</span>
+          </div>
         )}
-      </div>
-      {isPlanning && (
-        <div style={planningBannerStyle}>
-          <span style={bannerTextStyle}>{'Not in shopping mode yet.'}</span>
-          <button style={startShoppingButtonStyle} onClick={handleStartShopping}>
-            {'Start Shopping'}
-          </button>
+      </TabHeader>
+      <main style={containerStyle}>
+        {isPlanning && (
+          <div style={planningBannerStyle}>
+            <span style={bannerTextStyle}>{'Not in shopping mode yet.'}</span>
+            <button style={startShoppingButtonStyle} onClick={handleStartShopping}>
+              {'Start Shopping'}
+            </button>
+          </div>
+        )}
+        <div style={isPlanning ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>
+          {groups.map((group) => (
+            <ShoppingSection key={group.category} group={group} />
+          ))}
         </div>
-      )}
-      <div style={isPlanning ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>
-        {groups.map((group) => (
-          <ShoppingSection key={group.category} group={group} />
-        ))}
-      </div>
-    </div>
+      </main>
+    </>
   )
 }
 
 const containerStyle: React.CSSProperties = {
   maxWidth: 480,
   margin: '0 auto',
-  paddingBottom: 32,
-}
-
-const headerRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'space-between',
-  padding: '16px 16px 8px',
-}
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 22,
-  fontWeight: 700,
+  padding: '8px 16px 32px',
 }
 
 const syncLabelStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: '#9ca3af',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  fontSize: 13,
+  fontWeight: 500,
+  color: '#2E4A60',
+  paddingBottom: 6,
+}
+
+const progressTextStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  fontSize: 14,
+  color: '#2E4A60',
+}
+
+const trackStyle: React.CSSProperties = {
+  height: 8,
+  borderRadius: 4,
+  background: color.surface,
+  border: `1px solid ${tab.shopping.edge}`,
+  overflow: 'hidden',
 }
 
 const planningBannerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  margin: '0 16px 8px',
+  gap: 12,
+  margin: '8px 0',
   padding: '10px 14px',
-  borderRadius: 10,
-  background: '#eff6ff',
-  border: '1px solid #bfdbfe',
+  borderRadius: 14,
+  background: tab.shopping.tint,
+  border: `1px solid ${tab.shopping.edge}`,
 }
 
 const bannerTextStyle: React.CSSProperties = {
-  fontSize: 14,
-  color: '#1e40af',
+  fontSize: 15,
+  color: tab.shopping.dark,
 }
 
 const startShoppingButtonStyle: React.CSSProperties = {
-  fontSize: 13,
+  fontSize: 15,
   fontWeight: 600,
-  padding: '6px 14px',
-  borderRadius: 8,
+  minHeight: 44,
+  padding: '0 16px',
+  borderRadius: 12,
   border: 'none',
-  background: '#2563eb',
-  color: '#fff',
+  background: tab.shopping.accent,
+  color: '#FFFFFF',
   cursor: 'pointer',
   whiteSpace: 'nowrap',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {
-  padding: '8px 16px 4px',
-  fontSize: 11,
+  margin: 0,
+  padding: '14px 4px 6px',
+  fontSize: 13,
   fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
-  color: '#6b7280',
-  background: '#f9fafb',
-  borderBottom: '1px solid #f3f4f6',
+  color: tab.shopping.accent,
 }
 
 const listStyle: React.CSSProperties = {
   listStyle: 'none',
   padding: 0,
   margin: 0,
+  background: color.surface,
+  border: `1px solid ${color.line}`,
+  borderRadius: 14,
+  overflow: 'hidden',
 }
 
 const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  padding: '12px 16px',
-  gap: 12,
-  borderBottom: '1px solid #f3f4f6',
+  borderBottom: `1px solid ${color.lineSoft}`,
 }
 
 const rowCheckedStyle: React.CSSProperties = {
-  background: '#f9fafb',
+  background: tab.shopping.panel,
+}
+
+const rowLabelStyle: React.CSSProperties = {
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  minHeight: 48,
+  padding: '0 14px',
+  cursor: 'pointer',
+}
+
+// Real checkbox stays in the tab order and accessibility tree; the box beside it is decoration.
+const checkboxInputStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 14,
+  width: 24,
+  height: 24,
+  margin: 0,
+  opacity: 0,
+  cursor: 'pointer',
 }
 
 const nameStyle: React.CSSProperties = {
   flex: 1,
-  fontSize: 15,
+  fontSize: 16,
+  fontWeight: 500,
+  color: color.ink,
 }
 
 const nameCheckedStyle: React.CSSProperties = {
-  color: '#9ca3af',
+  fontWeight: 400,
+  color: color.muted,
   textDecoration: 'line-through',
+  textDecorationThickness: 1.5,
 }
 
 const amountStyle: React.CSSProperties = {
-  minWidth: 56,
-  fontSize: 14,
-  color: '#6b7280',
-  textAlign: 'right',
-  flexShrink: 0,
+  fontSize: 15,
+  fontWeight: 600,
+  fontVariantNumeric: 'tabular-nums',
+  color: color.muted,
+  whiteSpace: 'nowrap',
 }
 
 function checkboxStyle(checked: boolean): React.CSSProperties {
   return {
     width: 24,
     height: 24,
-    borderRadius: 6,
-    border: `2px solid ${checked ? '#2563eb' : '#d1d5db'}`,
-    background: checked ? '#2563eb' : '#fff',
+    borderRadius: 7,
+    border: `2px solid ${checked ? tab.shopping.accent : color.control}`,
+    background: checked ? tab.shopping.accent : color.surface,
+    color: '#FFFFFF',
     flexShrink: 0,
-    cursor: 'pointer',
+    boxSizing: 'border-box',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 0,
   }
-}
-
-const checkmarkStyle: React.CSSProperties = {
-  color: '#fff',
-  fontSize: 13,
-  fontWeight: 700,
-  lineHeight: 1,
 }

@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { Link } from '@tanstack/react-router'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
-import { GlobalSettingsWidget } from '@/components/ui/GlobalSettingsWidget'
+import { DefaultsSheet } from '@/components/ui/DefaultsSheet'
+import { TabHeader } from '@/components/ui/TabHeader'
+import { AlertIcon, BlockedIcon, CheckIcon, ChevronIcon, SlidersIcon } from '@/components/ui/icons'
+import { badgeBase, color, status, tab } from '@/theme'
 import {
   useRecipeStore,
   selectAllRecipeIds,
@@ -51,56 +54,63 @@ export function RecipeListItem({ recipeId }: { recipeId: string }) {
   if (!recipe) return null
 
   const isIncompatible = incompatible.length > 0
-  const planLine = isSelected
-    ? `in plan: ${servings ?? recipe.base_servings} servings${activeModes.length > 0 ? `; excl: ${activeModes.join(', ')}` : ''}`
-    : null
-
-  const itemBg = isIncompatible ? itemIncompatibleStyle : isSelected ? itemSelectedStyle : itemStyle
+  const relevantModes = activeModes.filter((mode) => recipeTags.includes(mode))
+  const cardStyle = isIncompatible
+    ? cardIncompatibleStyle
+    : isSelected
+      ? cardSelectedStyle
+      : cardStyleBase
 
   return (
-    <li style={itemBg}>
-      <button
-        type={'button'}
-        onClick={() => setExpanded((e) => !e)}
-        style={{ ...rowStyle, ...rowButtonStyle }}
-        aria-expanded={expanded}
-      >
-        <div style={titleBlockStyle}>
-          <div style={titleRowStyle}>
-            <span style={{ fontWeight: 600, fontSize: 16 }}>{recipe.title}</span>
-            {isIncompatible && <span style={incompatibleBadgeStyle}>{'Cannot Substitute'}</span>}
-            {!isIncompatible && allowedAllergens.length > 0 && (
-              <span style={allergenBadgeStyle}>{`Contains: ${allowedAllergens.join(', ')}`}</span>
+    <li style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        <button
+          type={'button'}
+          onClick={() => setExpanded((e) => !e)}
+          style={rowButtonStyle}
+          aria-expanded={expanded}
+        >
+          <span style={{ fontWeight: 600, fontSize: 17 }}>{recipe.title}</span>
+          <span style={badgeRowStyle}>
+            {isSelected && (
+              <span style={inPlanBadgeStyle}>
+                <CheckIcon size={14} />
+                {`In plan · ${servings ?? recipe.base_servings} servings`}
+              </span>
             )}
-          </div>
-          {planLine && <div style={planLineStyle}>{planLine}</div>}
-        </div>
+            {isSelected &&
+              relevantModes.map((mode) => (
+                <span key={mode} style={exclusionBadgeStyle}>
+                  <BlockedIcon size={14} />
+                  <span style={srOnlyStyle}>{'Excluding: '}</span>
+                  {`No ${mode}`}
+                </span>
+              ))}
+            {isIncompatible && (
+              <span style={incompatibleBadgeStyle}>
+                <BlockedIcon size={14} />
+                {`Can’t substitute: ${incompatible.join(', ')}`}
+              </span>
+            )}
+            {!isIncompatible && allowedAllergens.length > 0 && (
+              <span style={allergenBadgeStyle}>
+                <AlertIcon size={14} />
+                {`Contains: ${allowedAllergens.join(', ')}`}
+              </span>
+            )}
+          </span>
+        </button>
         <Link
           to={'/recipes/$recipeId'}
           params={{ recipeId }}
-          style={detailLinkStyle}
+          style={isSelected ? { ...detailLinkStyle, color: tab.recipes.accent } : detailLinkStyle}
           aria-label={`View ${recipe.title}`}
-          onClick={(e) => e.stopPropagation()}
         >
-          {'›'}
+          <ChevronIcon size={20} />
         </Link>
-      </button>
+      </div>
       {expanded && (
-        <div
-          style={
-            isIncompatible
-              ? expandedIncompatiblePanelStyle
-              : isSelected
-                ? expandedSelectedPanelStyle
-                : expandedPanelStyle
-          }
-        >
-          {isIncompatible && (
-            <div style={incompatibleListStyle}>
-              <span style={incompatibleListLabelStyle}>{'No substitute found: '}</span>
-              {incompatible.join(', ')}
-            </div>
-          )}
+        <div style={isSelected ? expandedSelectedPanelStyle : expandedPanelStyle}>
           <MealPlanWidget recipeId={recipeId} />
         </div>
       )}
@@ -111,135 +121,171 @@ export function RecipeListItem({ recipeId }: { recipeId: string }) {
 export function RecipeList() {
   const ids = useRecipeStore(useShallow(selectAllRecipeIds))
   const loadState = useRecipeStore((s) => s.loadState)
+  const [defaultsOpen, setDefaultsOpen] = useState(false)
+  const activePlanLabel = usePlansStore((s) =>
+    s.activePlanId ? s.planIndex.find((p) => p.id === s.activePlanId)?.label : undefined,
+  )
+  const defaultServings = usePlansStore((s) => s.default_servings)
+  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
 
-  if (loadState === 'idle' || loadState === 'loading') {
-    return <p style={{ padding: 24 }}>{'Loading recipes…'}</p>
-  }
-  if (loadState === 'error') return <p style={{ padding: 24 }}>{'Failed to load recipes.'}</p>
+  const summary = [
+    activePlanLabel ? `Adding to ${activePlanLabel}` : 'No plan open',
+    `${defaultServings} servings`,
+    globalModes.length > 0 ? `no ${globalModes.join(', ')}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 0 160px' }}>
-      <h1 style={{ padding: '0 16px', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-        {'Recipes'}
-      </h1>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {ids.map((id) => (
-          <RecipeListItem key={id} recipeId={id} />
-        ))}
-      </ul>
-      <GlobalSettingsWidget />
-    </div>
+    <>
+      <TabHeader
+        tab={'recipes'}
+        eyebrow={'Cookbook'}
+        title={'Recipes'}
+        action={
+          <button
+            type={'button'}
+            onClick={() => setDefaultsOpen(true)}
+            aria-label={'Plan defaults'}
+            aria-haspopup={'dialog'}
+            style={settingsButtonStyle}
+          >
+            <SlidersIcon size={20} />
+          </button>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 14, color: tab.recipes.dark }}>{summary}</p>
+      </TabHeader>
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 24px' }}>
+        {loadState === 'idle' || loadState === 'loading' ? (
+          <p style={messageStyle}>{'Loading recipes…'}</p>
+        ) : loadState === 'error' ? (
+          <p style={messageStyle}>{'Failed to load recipes.'}</p>
+        ) : (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {ids.map((id) => (
+              <RecipeListItem key={id} recipeId={id} />
+            ))}
+          </ul>
+        )}
+      </main>
+      <DefaultsSheet open={defaultsOpen} onOpenChange={setDefaultsOpen} />
+    </>
   )
 }
 
-const itemStyle: React.CSSProperties = {
-  borderBottom: '1px solid #e5e7eb',
+const messageStyle: React.CSSProperties = { color: color.muted, fontSize: 16 }
+
+const srOnlyStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
 }
 
-const itemSelectedStyle: React.CSSProperties = {
-  background: '#eff6ff',
-  borderBottom: '1px solid #bfdbfe',
-}
-
-const itemIncompatibleStyle: React.CSSProperties = {
-  background: '#fef2f2',
-  borderBottom: '1px solid #fecaca',
-}
-
-const rowStyle: React.CSSProperties = {
+const settingsButtonStyle: React.CSSProperties = {
+  width: 44,
+  height: 44,
+  flexShrink: 0,
+  borderRadius: 22,
+  border: `1px solid ${tab.recipes.edge}`,
+  background: color.surface,
+  color: tab.recipes.accent,
   display: 'flex',
   alignItems: 'center',
-  padding: '12px 16px',
-  gap: 8,
+  justifyContent: 'center',
+  cursor: 'pointer',
+  padding: 0,
+}
+
+const cardStyleBase: React.CSSProperties = {
+  background: color.surface,
+  border: `1px solid ${color.line}`,
+  borderRadius: 16,
+  marginBottom: 10,
+  overflow: 'hidden',
+}
+
+const cardSelectedStyle: React.CSSProperties = {
+  ...cardStyleBase,
+  border: `2px solid ${tab.recipes.accent}`,
+}
+
+const cardIncompatibleStyle: React.CSSProperties = {
+  ...cardStyleBase,
+  border: `1px dashed ${status.danger.edge}`,
 }
 
 const rowButtonStyle: React.CSSProperties = {
-  width: '100%',
+  flex: 1,
+  minWidth: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: 6,
+  padding: '14px 8px 14px 16px',
   background: 'none',
   border: 'none',
   cursor: 'pointer',
   textAlign: 'left',
+  color: color.ink,
+  position: 'relative',
 }
 
-const titleBlockStyle: React.CSSProperties = {
-  flex: 1,
-  minWidth: 0,
-}
-
-const titleRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  flexWrap: 'wrap',
-}
+const badgeRowStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6 }
 
 const detailLinkStyle: React.CSSProperties = {
   flexShrink: 0,
+  width: 48,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: 32,
-  height: 32,
-  borderRadius: 6,
-  border: '1px solid #e5e7eb',
-  background: '#fff',
-  color: '#6b7280',
-  fontSize: 20,
+  borderLeft: `1px solid ${color.lineSoft}`,
+  color: color.muted,
   textDecoration: 'none',
-  lineHeight: 1,
 }
 
-const planLineStyle: React.CSSProperties = {
-  marginTop: 4,
-  fontSize: 12,
-  fontWeight: 500,
-  color: '#1d4ed8',
+const inPlanBadgeStyle: React.CSSProperties = {
+  ...badgeBase,
+  borderRadius: 999,
+  background: tab.recipes.accent,
+  color: '#FFFFFF',
+}
+
+const exclusionBadgeStyle: React.CSSProperties = {
+  ...badgeBase,
+  padding: '2px 10px 2px 8px',
+  borderRadius: 999,
+  background: color.surface,
+  border: `1.5px solid ${color.muted}`,
+  color: color.ink,
 }
 
 const allergenBadgeStyle: React.CSSProperties = {
-  padding: '1px 6px',
-  borderRadius: 4,
-  background: '#fef3c7',
-  color: '#92400e',
-  fontSize: 11,
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+  ...badgeBase,
+  borderRadius: 6,
+  background: status.warn.bg,
+  color: status.warn.fg,
 }
 
 const incompatibleBadgeStyle: React.CSSProperties = {
-  padding: '1px 6px',
-  borderRadius: 4,
-  background: '#fee2e2',
-  color: '#dc2626',
-  fontSize: 11,
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+  ...badgeBase,
+  borderRadius: 6,
+  background: status.danger.bg,
+  color: status.danger.fg,
+  textAlign: 'left',
 }
 
 const expandedPanelStyle: React.CSSProperties = {
-  padding: '0 16px 16px',
-  borderTop: '1px solid #f3f4f6',
-  background: '#fafafa',
+  padding: '12px 16px 16px',
+  borderTop: `1px solid ${color.lineSoft}`,
+  background: color.ground,
 }
 
 const expandedSelectedPanelStyle: React.CSSProperties = {
-  padding: '0 16px 16px',
-  borderTop: '1px solid #bfdbfe',
-  background: '#dbeafe',
-}
-
-const expandedIncompatiblePanelStyle: React.CSSProperties = {
-  padding: '0 16px 16px',
-  borderTop: '1px solid #fecaca',
-  background: '#fee2e2',
-}
-
-const incompatibleListStyle: React.CSSProperties = {
-  padding: '10px 0 8px',
-  fontSize: 13,
-  color: '#dc2626',
-}
-
-const incompatibleListLabelStyle: React.CSSProperties = {
-  fontWeight: 600,
+  padding: '12px 16px 16px',
+  borderTop: `1px solid ${tab.recipes.edge}`,
+  background: tab.recipes.panel,
 }

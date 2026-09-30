@@ -3,24 +3,58 @@ import { Outlet, Link, useRouterState } from '@tanstack/react-router'
 import { useRecipeStore } from '@/store/recipeSlice'
 import { usePlanSync } from '@/hooks/usePlanSync'
 import { usePlansSync } from '@/hooks/usePlansSync'
+import { BasketIcon, BookIcon, CalendarIcon } from '@/components/ui/icons'
+import { NAV_HEIGHT, color, tab, type TabKey } from '@/theme'
+
+interface NavItem {
+  key: TabKey
+  to: '/' | '/shopping' | '/plans'
+  label: string
+  active: boolean
+  icon: React.ReactNode
+}
 
 function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const atRecipes = pathname === '/' || pathname.startsWith('/recipes/')
-  const atShopping = pathname === '/shopping'
-  const atPlans = pathname === '/plans' || pathname.startsWith('/plans/')
+  const items: NavItem[] = [
+    {
+      key: 'recipes',
+      to: '/',
+      label: 'Recipes',
+      active: pathname === '/' || pathname.startsWith('/recipes/'),
+      icon: <BookIcon size={22} />,
+    },
+    {
+      key: 'shopping',
+      to: '/shopping',
+      label: 'Shopping',
+      active: pathname === '/shopping',
+      icon: <BasketIcon size={22} />,
+    },
+    {
+      key: 'plans',
+      to: '/plans',
+      label: 'Plans',
+      active: pathname === '/plans' || pathname.startsWith('/plans/'),
+      icon: <CalendarIcon size={22} />,
+    },
+  ]
 
   return (
-    <nav style={navStyle}>
-      <Link to={'/'} style={tabStyle(atRecipes)}>
-        {'Recipes'}
-      </Link>
-      <Link to={'/shopping'} style={tabStyle(atShopping)}>
-        {'Shopping'}
-      </Link>
-      <Link to={'/plans'} style={tabStyle(atPlans)}>
-        {'Plans'}
-      </Link>
+    <nav aria-label={'Main'} style={navStyle}>
+      <div style={navInnerStyle}>
+        {items.map((item) => (
+          <Link
+            key={item.key}
+            to={item.to}
+            aria-current={item.active ? 'page' : undefined}
+            style={tabStyle(item.key, item.active)}
+          >
+            <span style={pillStyle(item.key, item.active)}>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </div>
     </nav>
   )
 }
@@ -35,25 +69,36 @@ export function RootLayout() {
   usePlanSync()
 
   return (
-    <div style={{ paddingBottom: 56 }}>
+    <div style={{ paddingBottom: NAV_HEIGHT }}>
       <Outlet />
       <BottomNav />
     </div>
   )
 }
 
-function tabStyle(active: boolean): React.CSSProperties {
+function tabStyle(key: TabKey, active: boolean): React.CSSProperties {
   return {
-    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    textDecoration: 'none',
+    fontSize: 13,
+    fontWeight: active ? 700 : 500,
+    color: active ? tab[key].accent : color.muted,
+  }
+}
+
+function pillStyle(key: TabKey, active: boolean): React.CSSProperties {
+  return {
+    width: 60,
+    height: 32,
+    borderRadius: 16,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
-    textDecoration: 'none',
-    fontSize: 14,
-    fontWeight: active ? 700 : 400,
-    color: active ? '#2563eb' : '#6b7280',
-    borderTop: active ? '2px solid #2563eb' : '2px solid transparent',
+    background: active ? tab[key].tint : 'transparent',
   }
 }
 
@@ -62,9 +107,18 @@ const navStyle: React.CSSProperties = {
   bottom: 0,
   left: 0,
   right: 0,
-  height: 56,
-  background: '#fff',
-  borderTop: '1px solid #e5e7eb',
-  display: 'flex',
+  height: NAV_HEIGHT,
+  boxSizing: 'border-box',
+  background: color.surface,
+  borderTop: `1px solid ${color.line}`,
+  padding: '6px 8px 10px',
   zIndex: 50,
+}
+
+const navInnerStyle: React.CSSProperties = {
+  maxWidth: 480,
+  height: '100%',
+  margin: '0 auto',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
 }
