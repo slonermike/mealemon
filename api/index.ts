@@ -2,7 +2,7 @@ import * as crypto from 'crypto'
 import express from 'express'
 import { put, get, del } from '@vercel/blob'
 import bcrypt from 'bcryptjs'
-import type { Plan, PlanIndex } from '../src/lib/schema'
+import type { GlobalSettings, Plan, PlanIndex } from '../src/lib/schema'
 
 // --- auth helpers ---
 
@@ -85,6 +85,16 @@ async function readPlanIndex(): Promise<PlanIndex> {
 async function writePlanIndex(index: PlanIndex) {
   await writeBlob('plans/index.json', { ...index, schema_version: SCHEMA_VERSION })
 }
+async function readSettings(): Promise<GlobalSettings> {
+  const raw = await readBlob<Record<string, unknown>>('settings/global.json')
+  if (!raw || (raw.schema_version as number) < 1) {
+    return { schema_version: SCHEMA_VERSION, default_servings: 4, active_modes: [] }
+  }
+  return raw as unknown as GlobalSettings
+}
+async function writeSettings(settings: GlobalSettings) {
+  await writeBlob('settings/global.json', { ...settings, schema_version: SCHEMA_VERSION })
+}
 function defaultPlanLabel() {
   return `Plan Created ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
@@ -140,6 +150,24 @@ app.get('/api/auth/check', (req, res) => {
   else res.status(401).json({ error: 'Unauthorized' })
 })
 
+// settings routes
+app.get('/api/settings', requireAuth, async (_req, res) => {
+  res.json(await readSettings())
+})
+
+app.post('/api/settings', requireAuth, async (req, res) => {
+  const body = req.body as Partial<GlobalSettings>
+  const existing = await readSettings()
+  const updated: GlobalSettings = {
+    ...existing,
+    default_servings:
+      typeof body.default_servings === 'number' ? body.default_servings : existing.default_servings,
+    active_modes: Array.isArray(body.active_modes) ? body.active_modes : existing.active_modes,
+  }
+  await writeSettings(updated)
+  res.json({ ok: true })
+})
+
 // plans routes
 app.get('/api/plans', requireAuth, async (_req, res) => {
   res.json(await readPlanIndex())
@@ -154,7 +182,6 @@ app.post('/api/plans', requireAuth, async (_req, res) => {
     created_at: now,
     status: 'planning',
     selected: [],
-    active_modes: [],
     checked_off: [],
   }
   const index = await readPlanIndex()
@@ -189,7 +216,6 @@ app.post('/api/plans/:id', requireAuth, async (req, res) => {
   const updated: Plan = {
     ...existing,
     selected: Array.isArray(body.selected) ? body.selected : existing.selected,
-    active_modes: body.active_modes ?? existing.active_modes,
     checked_off: body.checked_off ?? existing.checked_off,
     label: body.label ?? existing.label,
     status: body.status ?? existing.status,

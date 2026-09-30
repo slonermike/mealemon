@@ -1,8 +1,8 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useShallow } from 'zustand/react/shallow'
-import { usePlansStore, selectActivePlan } from '@/store/plansSlice'
+import { useSettingsStore } from '@/store/settingsSlice'
 import { useRecipeStore, selectAllAllergenTags } from '@/store/recipeSlice'
-import { CalendarIcon, CloseIcon } from '@/components/ui/icons'
+import { CloseIcon } from '@/components/ui/icons'
 import { color, eyebrowStyle, font, tab } from '@/theme'
 import { ModeToggleList } from './ModeToggleList'
 import { ServingsStepper } from './ServingsStepper'
@@ -13,13 +13,10 @@ interface Props {
 }
 
 export function DefaultsSheet({ open, onOpenChange }: Props) {
-  const activePlanLabel = usePlansStore((s) =>
-    s.activePlanId ? s.planIndex.find((p) => p.id === s.activePlanId)?.label : undefined,
-  )
-  const activeModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
-  const toggleMode = usePlansStore((s) => s.toggleMode)
-  const defaultServings = usePlansStore((s) => s.default_servings)
-  const setDefaultServings = usePlansStore((s) => s.setDefaultServings)
+  const activeModes = useSettingsStore(useShallow((s) => s.active_modes))
+  const toggleMode = useSettingsStore((s) => s.toggleMode)
+  const defaultServings = useSettingsStore((s) => s.default_servings)
+  const setDefaultServings = useSettingsStore((s) => s.setDefaultServings)
   const allTags = useRecipeStore(useShallow(selectAllAllergenTags))
 
   const summary = `${defaultServings} servings · ${
@@ -68,12 +65,6 @@ export function DefaultsSheet({ open, onOpenChange }: Props) {
                 onClear={() => activeModes.forEach(toggleMode)}
                 clearLabel={'none'}
               />
-              {activePlanLabel && (
-                <span style={scopeStyle}>
-                  <CalendarIcon size={14} />
-                  {`Only for ${activePlanLabel}`}
-                </span>
-              )}
             </section>
           )}
 
@@ -174,15 +165,6 @@ const cardRowStyle: React.CSSProperties = {
 const cardTitleStyle: React.CSSProperties = { margin: 0, fontSize: 17, fontWeight: 600 }
 
 const hintStyle: React.CSSProperties = { fontSize: 14, color: color.muted, lineHeight: 1.4 }
-
-const scopeStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  fontSize: 13,
-  fontWeight: 600,
-  color: tab.plans.accent,
-}
 
 const doneStyle: React.CSSProperties = {
   minHeight: 52,

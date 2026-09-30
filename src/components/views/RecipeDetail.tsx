@@ -8,6 +8,7 @@ import {
   selectRecipeModes,
   selectActivePlan,
 } from '@/store/plansSlice'
+import { useSettingsStore } from '@/store/settingsSlice'
 import { resolveSlot, getIncompatibleSlots } from '@/lib/pipeline'
 import { formatAmount } from '@/lib/units'
 import { MealPlanWidget } from '@/components/ui/MealPlanWidget'
@@ -31,7 +32,7 @@ function resolveStepContent(content: string, slotNameMap: Map<string, string>): 
 
 function useResolvedIngredients(recipe: Recipe, scale: number) {
   const registry = useRecipeStore((s) => s.registry)
-  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const globalModes = useSettingsStore(useShallow((s) => s.active_modes))
   const selected = usePlansStore((s) => selectActivePlan(s)?.selected ?? [])
 
   return useMemo(() => {
@@ -56,7 +57,7 @@ export function RecipeDetail() {
   const recipe = useRecipeStore(recipeSelector)
   const registry = useRecipeStore((s) => s.registry)
   const plannedServings = usePlansStore(servingsSelector)
-  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const globalModes = useSettingsStore(useShallow((s) => s.active_modes))
   const recipeModesOverride = usePlansStore(recipeModesSelector)
 
   const activeModes =
@@ -69,7 +70,7 @@ export function RecipeDetail() {
     [recipe, activeModes, registry],
   )
 
-  const defaultServings = usePlansStore((s) => s.default_servings)
+  const defaultServings = useSettingsStore((s) => s.default_servings)
   const baseServings = recipe?.base_servings ?? 1
   const displayServings = plannedServings ?? defaultServings
   const scale = displayServings / baseServings

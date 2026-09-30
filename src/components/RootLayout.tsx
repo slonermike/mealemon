@@ -3,6 +3,7 @@ import { Outlet, Link, useRouterState } from '@tanstack/react-router'
 import { useRecipeStore } from '@/store/recipeSlice'
 import { usePlanSync } from '@/hooks/usePlanSync'
 import { usePlansSync } from '@/hooks/usePlansSync'
+import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { BasketIcon, BookIcon, CalendarIcon } from '@/components/ui/icons'
 import { NAV_HEIGHT, color, tab, type TabKey } from '@/theme'
 
@@ -67,6 +68,7 @@ export function RootLayout() {
 
   usePlansSync()
   usePlanSync()
+  useSettingsSync()
 
   return (
     <div style={{ paddingBottom: NAV_HEIGHT }}>

@@ -58,6 +58,12 @@ export interface CheckoffKey {
 
 export type PlanStatus = 'planning' | 'shopping' | 'done'
 
+export interface GlobalSettings {
+  schema_version: number
+  default_servings: number
+  active_modes: string[]
+}
+
 export interface Plan {
   id: string
   schema_version: number
@@ -65,7 +71,6 @@ export interface Plan {
   created_at: string
   status: PlanStatus
   selected: PlanSelection[]
-  active_modes: string[]
   checked_off: CheckoffKey[]
 }
 

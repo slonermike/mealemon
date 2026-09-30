@@ -4,6 +4,7 @@ import { buildShoppingList } from '@/lib/pipeline'
 import type { ShoppingItem } from '@/lib/schema'
 import { usePlansStore, selectActivePlan } from './plansSlice'
 import { useRecipeStore } from './recipeSlice'
+import { useSettingsStore } from './settingsSlice'
 
 export interface ShoppingGroup {
   category: string
@@ -23,7 +24,7 @@ const CATEGORY_ORDER: { key: string; label: string }[] = [
 
 export function useResolvedShoppingList(): ShoppingGroup[] {
   const selected = usePlansStore(useShallow((s) => selectActivePlan(s)?.selected ?? []))
-  const activeModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const activeModes = useSettingsStore(useShallow((s) => s.active_modes))
 
   const recipes = useRecipeStore((s) => s.recipes)
   const registry = useRecipeStore((s) => s.registry)

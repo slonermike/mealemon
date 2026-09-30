@@ -17,8 +17,8 @@ import {
   selectIsRecipeSelected,
   selectServings,
   selectRecipeModes,
-  selectActivePlan,
 } from '@/store/plansSlice'
+import { useSettingsStore } from '@/store/settingsSlice'
 import { getIncompatibleSlots } from '@/lib/pipeline'
 
 export function RecipeListItem({ recipeId }: { recipeId: string }) {
@@ -36,7 +36,7 @@ export function RecipeListItem({ recipeId }: { recipeId: string }) {
   const isSelected = usePlansStore(isSelectedSelector)
   const servings = usePlansStore(servingsSelector)
   const recipeModesOverride = usePlansStore(recipeModesSelector)
-  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const globalModes = useSettingsStore(useShallow((s) => s.active_modes))
 
   const hasOverride = recipeModesOverride !== null && recipeModesOverride !== undefined
   const activeModes = hasOverride ? recipeModesOverride! : globalModes
@@ -125,8 +125,8 @@ export function RecipeList() {
   const activePlanLabel = usePlansStore((s) =>
     s.activePlanId ? s.planIndex.find((p) => p.id === s.activePlanId)?.label : undefined,
   )
-  const defaultServings = usePlansStore((s) => s.default_servings)
-  const globalModes = usePlansStore(useShallow((s) => selectActivePlan(s)?.active_modes ?? []))
+  const defaultServings = useSettingsStore((s) => s.default_servings)
+  const globalModes = useSettingsStore(useShallow((s) => s.active_modes))
 
   const summary = [
     activePlanLabel ? `Adding to ${activePlanLabel}` : 'No plan open',

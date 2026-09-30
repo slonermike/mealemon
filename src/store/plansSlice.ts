@@ -5,7 +5,6 @@ interface PlansState {
   plans: Record<string, Plan>
   planIndex: PlanSummary[]
   activePlanId: string | null
-  default_servings: number
   indexLoaded: boolean
 
   // Index / navigation
@@ -18,10 +17,8 @@ interface PlansState {
   loadPlan: (plan: Plan) => void
 
   // Active plan mutations
-  toggleRecipe: (recipe_id: string) => void
+  toggleRecipe: (recipe_id: string, defaultServings: number) => void
   setServings: (recipe_id: string, servings: number) => void
-  setDefaultServings: (servings: number) => void
-  toggleMode: (mode: string) => void
   toggleRecipeMode: (recipe_id: string, mode: string, globalModes: string[]) => void
   resetRecipeModes: (recipe_id: string) => void
   toggleCheckoff: (key: CheckoffKey) => void
@@ -43,7 +40,6 @@ export const usePlansStore = create<PlansState>()((set) => ({
   plans: {},
   planIndex: [],
   activePlanId: null,
-  default_servings: 4,
   indexLoaded: false,
 
   loadPlanIndex: (summaries) => set({ planIndex: summaries, indexLoaded: true }),
@@ -75,7 +71,7 @@ export const usePlansStore = create<PlansState>()((set) => ({
 
   loadPlan: (plan) => set((s) => ({ plans: { ...s.plans, [plan.id]: plan } })),
 
-  toggleRecipe: (recipe_id) =>
+  toggleRecipe: (recipe_id, defaultServings) =>
     set((s) => {
       const plan = s.activePlanId ? s.plans[s.activePlanId] : null
       if (!plan) return {}
@@ -83,7 +79,7 @@ export const usePlansStore = create<PlansState>()((set) => ({
       return updateActive(s, (p) => ({
         selected: exists
           ? p.selected.filter((sel) => sel.recipe_id !== recipe_id)
-          : [...p.selected, { recipe_id, servings: s.default_servings, shopped: false }],
+          : [...p.selected, { recipe_id, servings: defaultServings, shopped: false }],
       }))
     }),
 
@@ -93,17 +89,6 @@ export const usePlansStore = create<PlansState>()((set) => ({
         selected: p.selected.map((sel) =>
           sel.recipe_id === recipe_id ? { ...sel, servings } : sel,
         ),
-      })),
-    ),
-
-  setDefaultServings: (default_servings) => set({ default_servings }),
-
-  toggleMode: (mode) =>
-    set((s) =>
-      updateActive(s, (p) => ({
-        active_modes: p.active_modes.includes(mode)
-          ? p.active_modes.filter((m) => m !== mode)
-          : [...p.active_modes, mode],
       })),
     ),
 

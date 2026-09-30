@@ -6,6 +6,7 @@ import {
   selectServings,
   selectRecipeModes,
 } from '@/store/plansSlice'
+import { useSettingsStore } from '@/store/settingsSlice'
 import { useRecipeStore, selectRecipeAllergenTags } from '@/store/recipeSlice'
 import { AlertIcon, PlusIcon } from '@/components/ui/icons'
 import { color, status, tab } from '@/theme'
@@ -18,9 +19,8 @@ interface Props {
 
 export function MealPlanWidget({ recipeId }: Props) {
   const activePlanId = usePlansStore((s) => s.activePlanId)
-  const globalModes = usePlansStore(
-    useShallow((s) => s.plans[s.activePlanId ?? '']?.active_modes ?? []),
-  )
+  const globalModes = useSettingsStore(useShallow((s) => s.active_modes))
+  const defaultServings = useSettingsStore((s) => s.default_servings)
   const toggleRecipe = usePlansStore((s) => s.toggleRecipe)
   const setServings = usePlansStore((s) => s.setServings)
   const toggleRecipeMode = usePlansStore((s) => s.toggleRecipeMode)
@@ -51,7 +51,11 @@ export function MealPlanWidget({ recipeId }: Props) {
 
   if (!isSelected) {
     return (
-      <button type={'button'} onClick={() => toggleRecipe(recipeId)} style={addButtonStyle}>
+      <button
+        type={'button'}
+        onClick={() => toggleRecipe(recipeId, defaultServings)}
+        style={addButtonStyle}
+      >
         <PlusIcon size={18} />
         {'Add to plan'}
       </button>
@@ -85,7 +89,11 @@ export function MealPlanWidget({ recipeId }: Props) {
           />
         </div>
       )}
-      <button type={'button'} onClick={() => toggleRecipe(recipeId)} style={removeButtonStyle}>
+      <button
+        type={'button'}
+        onClick={() => toggleRecipe(recipeId, defaultServings)}
+        style={removeButtonStyle}
+      >
         {'Remove from plan'}
       </button>
     </div>
